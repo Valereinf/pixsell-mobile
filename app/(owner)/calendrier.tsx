@@ -11,13 +11,13 @@ import { supabase } from '../../lib/supabase'
 const { width: SCREEN_W } = Dimensions.get('window')
 
 // ── Constants ────────────────────────────────────────────────────
-const SLOT_H   = 44
-const START_H  = 7
-const END_H    = 22
-const TOTAL_SLOTS = (END_H - START_H) * 4
-const GRID_H   = TOTAL_SLOTS * SLOT_H
-const TIME_COL_W = 50
-const EMP_COL_W  = 130
+const SLOT_H        = 44
+const START_H       = 7
+const END_H         = 22
+const TOTAL_SLOTS   = (END_H - START_H) * 4
+const GRID_H        = TOTAL_SLOTS * SLOT_H
+const TIME_COL_WIDTH = 56
+const COLUMN_WIDTH   = 200
 
 // ── Types ────────────────────────────────────────────────────────
 type Statut = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show'
@@ -364,7 +364,7 @@ export default function CalendrierScreen() {
 
   const visibleEmps = employes.filter(e => visibleEmpIds.has(e.id))
   const weekEmp = employes.find(e => e.id === weekEmpId) ?? employes[0]
-  const weekColW = (SCREEN_W - TIME_COL_W) / 7
+  const weekColW = (SCREEN_W - TIME_COL_WIDTH) / 7
 
   if (loading) return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f5f3ff' }}>
@@ -434,26 +434,54 @@ export default function CalendrierScreen() {
         })}
       </ScrollView>
 
-      {/* ── Column headers ── */}
-      <View style={{ flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
-        <View style={{ width: TIME_COL_W }} />
-        {viewMode === 'day' ? (
+      {/* ── Day view: single outer horizontal ScrollView keeps headers + columns in sync ── */}
+      {viewMode === 'day' && (
+        <View style={{ flex: 1 }}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {visibleEmps.map((emp, i) => {
-              const color = empColor(emp, i)
-              return (
-                <View key={emp.id} style={{ width: EMP_COL_W, padding: 8, alignItems: 'center', borderRightWidth: 1, borderRightColor: 'rgba(0,0,0,0.05)' }}>
-                  <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: color, alignItems: 'center', justifyContent: 'center', marginBottom: 2 }}>
-                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{emp.nom.slice(0, 2).toUpperCase()}</Text>
+            <View style={{ width: TIME_COL_WIDTH + visibleEmps.length * COLUMN_WIDTH }}>
+
+              {/* Employee headers — plain row, not a ScrollView */}
+              <View style={{ flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
+                <View style={{ width: TIME_COL_WIDTH }} />
+                {visibleEmps.map((emp, i) => {
+                  const color = empColor(emp, i)
+                  return (
+                    <View key={emp.id} style={{ width: COLUMN_WIDTH, padding: 8, alignItems: 'center', borderRightWidth: 1, borderRightColor: 'rgba(0,0,0,0.05)' }}>
+                      <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: color, alignItems: 'center', justifyContent: 'center', marginBottom: 2 }}>
+                        <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{emp.nom.slice(0, 2).toUpperCase()}</Text>
+                      </View>
+                      <Text style={{ fontSize: 11, fontWeight: '600', color: '#374151' }} numberOfLines={1}>{emp.nom}</Text>
+                      {emp.titre ? <Text style={{ fontSize: 10, color: '#9ca3af' }} numberOfLines={1}>{emp.titre}</Text> : null}
+                    </View>
+                  )
+                })}
+              </View>
+
+              {/* Time grid — vertical scroll only */}
+              <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+                <View style={{ flexDirection: 'row', height: GRID_H }}>
+                  <View style={{ width: TIME_COL_WIDTH }}>
+                    {Array.from({ length: TOTAL_SLOTS }).map((_, i) => (
+                      <View key={i} style={{ height: SLOT_H, justifyContent: 'flex-start', alignItems: 'flex-end', paddingRight: 6, paddingTop: 2 }}>
+                        {i % 4 === 0 && <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: '500' }}>{toTime(START_H * 60 + i * 15)}</Text>}
+                      </View>
+                    ))}
                   </View>
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: '#374151' }} numberOfLines={1}>{emp.nom}</Text>
-                  {emp.titre ? <Text style={{ fontSize: 10, color: '#9ca3af' }} numberOfLines={1}>{emp.titre}</Text> : null}
+                  {visibleEmps.map((emp, i) => renderColumn(emp, i, selectedDate, COLUMN_WIDTH))}
                 </View>
-              )
-            })}
+              </ScrollView>
+
+            </View>
           </ScrollView>
-        ) : (
-          <View style={{ flexDirection: 'row', flex: 1 }}>
+        </View>
+      )}
+
+      {/* ── Week view ── */}
+      {viewMode === 'week' && weekEmp && (
+        <View style={{ flex: 1 }}>
+          {/* Week column headers */}
+          <View style={{ flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
+            <View style={{ width: TIME_COL_WIDTH }} />
             {weekDates.map(date => {
               const isToday = date === todayISO()
               const label = new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })
@@ -465,37 +493,21 @@ export default function CalendrierScreen() {
               )
             })}
           </View>
-        )}
-      </View>
-
-      {/* ── Time grid ── */}
-      <ScrollView ref={scrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false} nestedScrollEnabled>
-        <View style={{ flexDirection: 'row', height: GRID_H }}>
-
-          {/* Time labels */}
-          <View style={{ width: TIME_COL_W }}>
-            {Array.from({ length: TOTAL_SLOTS }).map((_, i) => (
-              <View key={i} style={{ height: SLOT_H, justifyContent: 'flex-start', alignItems: 'flex-end', paddingRight: 6, paddingTop: 2 }}>
-                {i % 4 === 0 && <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: '500' }}>{toTime(START_H * 60 + i * 15)}</Text>}
+          {/* Week time grid */}
+          <ScrollView ref={scrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+            <View style={{ flexDirection: 'row', height: GRID_H }}>
+              <View style={{ width: TIME_COL_WIDTH }}>
+                {Array.from({ length: TOTAL_SLOTS }).map((_, i) => (
+                  <View key={i} style={{ height: SLOT_H, justifyContent: 'flex-start', alignItems: 'flex-end', paddingRight: 6, paddingTop: 2 }}>
+                    {i % 4 === 0 && <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: '500' }}>{toTime(START_H * 60 + i * 15)}</Text>}
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
-
-          {/* Day view columns */}
-          {viewMode === 'day' && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
-              {visibleEmps.map((emp, i) => renderColumn(emp, i, selectedDate, EMP_COL_W))}
-            </ScrollView>
-          )}
-
-          {/* Week view */}
-          {viewMode === 'week' && weekEmp && (
-            <View style={{ flexDirection: 'row', flex: 1 }}>
               {weekDates.map(date => renderColumn(weekEmp, employes.indexOf(weekEmp), date, weekColW))}
             </View>
-          )}
+          </ScrollView>
         </View>
-      </ScrollView>
+      )}
 
       {/* ── FAB ── */}
       <TouchableOpacity
