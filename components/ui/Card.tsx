@@ -1,10 +1,22 @@
-// TODO: reusable Card component
-import { View, StyleSheet, ViewProps } from 'react-native'
+import { View, ViewStyle, ViewProps } from 'react-native'
+import { COLORS, RADIUS, SHADOW } from '../../constants/theme'
 
-export default function Card({ children, style, ...props }: ViewProps) {
-  return <View style={[styles.card, style]} {...props}>{children}</View>
+interface CardProps extends ViewProps {
+  children: React.ReactNode
+  style?: ViewStyle
 }
 
-const styles = StyleSheet.create({
-  card: { backgroundColor: '#1a1a1a', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#2a2a2a' },
-})
+export default function Card({ children, style, ...props }: CardProps) {
+  return (
+    <View style={[{
+      backgroundColor: COLORS.surface,
+      borderRadius: RADIUS.lg,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: COLORS.border,
+      ...SHADOW.card,
+    }, style]} {...props}>
+      {children}
+    </View>
+  )
+}

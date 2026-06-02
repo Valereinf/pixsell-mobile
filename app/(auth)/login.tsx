@@ -1,124 +1,200 @@
 import { useState } from 'react'
 import {
-  View, Text, TextInput, TouchableOpacity,
-  StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator,
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
 } from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 
+type Tab = 'owner' | 'employee'
+
 export default function Login() {
   const router = useRouter()
+  const [tab, setTab] = useState<Tab>('owner')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [slug, setSlug] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   async function handleLogin() {
+    if (!email || !password) { setError('Email et mot de passe requis'); return }
+    if (tab === 'employee' && !slug) { setError('Slug du salon requis'); return }
     setLoading(true)
     setError('')
 
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    try {
+      if (tab === 'owner') {
+        const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
+        if (authError || !data.session) throw new Error(authError?.message ?? 'Identifiants incorrects')
+        const role = data.session.user.app_metadata?.role ?? 'owner'
+        router.replace(role === 'employee' ? '/(employee)/agenda' : '/(owner)/dashboard')
+      } else {
+        // Employee: find company by slug, then validate against employes table
+        const { data: company, error: compErr } = await supabase
+          .from('companies').select('id').eq('slug', slug.toLowerCase().trim()).single()
+        if (compErr || !company) throw new Error('Salon introuvable')
 
-    if (authError || !data.session) {
-      setError(authError?.message ?? 'Identifiants incorrects')
+        const { data: employe, error: empErr } = await supabase
+          .from('employes').select('id, nom, email')
+          .eq('email', email.toLowerCase().trim())
+          .eq('company_id', company.id)
+          .eq('actif', true)
+          .single()
+        if (empErr || !employe) throw new Error('Identifiants invalides')
+
+        // Sign in via Supabase auth (employee must have an auth account)
+        const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password })
+        if (signInErr) throw new Error(signInErr.message)
+
+        router.replace('/(employee)/agenda')
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Erreur de connexion')
+    } finally {
       setLoading(false)
-      return
-    }
-
-    const role = data.session.user.app_metadata?.role ?? 'owner'
-
-    if (role === 'employee') {
-      router.replace('/(employee)/agenda')
-    } else {
-      router.replace('/(owner)/dashboard')
     }
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <View style={styles.inner}>
-        {/* Logo */}
-        <View style={styles.logoRow}>
-          <View style={styles.logoBox}>
-            <Text style={styles.logoLetter}>P</Text>
+    <LinearGradient colors={['#ddd6fe', '#f5d0fe', '#fce7f3']} style={{ flex: 1 }}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+
+          {/* Logo */}
+          <View style={styles.logoRow}>
+            <View style={styles.logoBox}>
+              <Text style={styles.logoLetter}>P</Text>
+            </View>
+            <Text style={styles.logoText}>PIXSELL</Text>
           </View>
-          <Text style={styles.logoText}>Pixsell</Text>
-        </View>
 
-        <Text style={styles.title}>Connexion</Text>
-        <Text style={styles.subtitle}>Accédez à votre espace professionnel</Text>
+          <Text style={styles.title}>Connexion</Text>
+          <Text style={styles.subtitle}>Accédez à votre espace professionnel</Text>
 
-        {/* Email */}
-        <View style={styles.field}>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="contact@monsalon.com"
-            placeholderTextColor="#555"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-          />
-        </View>
+          {/* Glass card */}
+          <View style={styles.card}>
 
-        {/* Password */}
-        <View style={styles.field}>
-          <Text style={styles.label}>Mot de passe</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            placeholder="••••••••"
-            placeholderTextColor="#555"
-            secureTextEntry
-            autoComplete="password"
-          />
-        </View>
+            {/* Tabs */}
+            <View style={styles.tabRow}>
+              {(['owner', 'employee'] as Tab[]).map(t => (
+                <TouchableOpacity
+                  key={t}
+                  onPress={() => { setTab(t); setError('') }}
+                  style={[styles.tabBtn, tab === t && styles.tabBtnActive]}
+                >
+                  <Text style={[styles.tabLabel, tab === t && styles.tabLabelActive]}>
+                    {t === 'owner' ? 'Owner / Admin' : 'Employé'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-        {/* Error */}
-        {!!error && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
+            {/* Slug field (employee only) */}
+            {tab === 'employee' && (
+              <View style={styles.field}>
+                <Text style={styles.label}>Slug du salon</Text>
+                <TextInput
+                  style={styles.input}
+                  value={slug}
+                  onChangeText={setSlug}
+                  placeholder="ex: monsalon"
+                  placeholderTextColor="#9ca3af"
+                  autoCapitalize="none"
+                />
+              </View>
+            )}
+
+            {/* Email */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="votre@email.com"
+                placeholderTextColor="#9ca3af"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+              />
+            </View>
+
+            {/* Password */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Mot de passe</Text>
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="••••••••"
+                placeholderTextColor="#9ca3af"
+                secureTextEntry
+                autoComplete="password"
+              />
+            </View>
+
+            {/* Error */}
+            {!!error && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+
+            {/* Submit */}
+            <TouchableOpacity
+              onPress={handleLogin}
+              disabled={loading}
+              style={[styles.btnWrapper, loading && { opacity: 0.6 }]}
+            >
+              <LinearGradient
+                colors={['#7c3aed', '#ec4899']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.btn}
+              >
+                {loading
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.btnText}>Se connecter →</Text>
+                }
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Forgot password */}
+            <TouchableOpacity style={styles.forgotRow}>
+              <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
+            </TouchableOpacity>
+
           </View>
-        )}
-
-        {/* Submit */}
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleLogin}
-          disabled={loading}
-          activeOpacity={0.85}
-        >
-          {loading
-            ? <ActivityIndicator color="#fff" size="small" />
-            : <Text style={styles.buttonText}>Se connecter →</Text>
-          }
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   )
 }
 
 const styles = StyleSheet.create({
-  container:      { flex: 1, backgroundColor: '#000' },
-  inner:          { flex: 1, paddingHorizontal: 28, paddingTop: 80, paddingBottom: 40 },
-  logoRow:        { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 40 },
-  logoBox:        { width: 40, height: 40, borderRadius: 10, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center' },
-  logoLetter:     { color: '#fff', fontSize: 20, fontWeight: '900' },
-  logoText:       { color: '#fff', fontSize: 22, fontWeight: '700' },
-  title:          { color: '#fff', fontSize: 26, fontWeight: '700', marginBottom: 6 },
-  subtitle:       { color: '#666', fontSize: 14, marginBottom: 36 },
-  field:          { marginBottom: 18 },
-  label:          { color: '#aaa', fontSize: 13, fontWeight: '600', marginBottom: 8 },
-  input:          { backgroundColor: '#111', borderWidth: 1, borderColor: '#222', borderRadius: 10, paddingVertical: 13, paddingHorizontal: 16, color: '#fff', fontSize: 15 },
-  errorBox:       { backgroundColor: '#1a0000', borderWidth: 1, borderColor: '#7f1d1d', borderRadius: 10, padding: 12, marginBottom: 16 },
-  errorText:      { color: '#fca5a5', fontSize: 13 },
-  button:         { backgroundColor: '#7c3aed', paddingVertical: 15, borderRadius: 12, alignItems: 'center', marginTop: 8 },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText:     { color: '#fff', fontSize: 16, fontWeight: '700' },
+  scroll:         { flexGrow: 1, paddingHorizontal: 24, paddingTop: 80, paddingBottom: 48 },
+  logoRow:        { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 32 },
+  logoBox:        { width: 44, height: 44, borderRadius: 12, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center' },
+  logoLetter:     { color: '#fff', fontSize: 22, fontWeight: '900' },
+  logoText:       { color: '#1e1b4b', fontSize: 22, fontWeight: '800', letterSpacing: 2 },
+  title:          { color: '#1e1b4b', fontSize: 28, fontWeight: '700', marginBottom: 6 },
+  subtitle:       { color: '#6b7280', fontSize: 14, marginBottom: 28 },
+  card:           { backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 24, padding: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.9)', shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 8 },
+  tabRow:         { flexDirection: 'row', backgroundColor: 'rgba(124,58,237,0.08)', borderRadius: 12, padding: 4, marginBottom: 20 },
+  tabBtn:         { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10 },
+  tabBtnActive:   { backgroundColor: '#fff', shadowColor: '#7c3aed', shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+  tabLabel:       { color: '#9ca3af', fontSize: 13, fontWeight: '600' },
+  tabLabelActive: { color: '#7c3aed' },
+  field:          { marginBottom: 16 },
+  label:          { color: '#374151', fontSize: 13, fontWeight: '600', marginBottom: 8 },
+  input:          { backgroundColor: 'rgba(255,255,255,0.7)', borderWidth: 1, borderColor: 'rgba(124,58,237,0.15)', borderRadius: 14, paddingVertical: 13, paddingHorizontal: 16, color: '#111827', fontSize: 15 },
+  errorBox:       { backgroundColor: 'rgba(239,68,68,0.08)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.2)', borderRadius: 12, padding: 12, marginBottom: 12 },
+  errorText:      { color: '#dc2626', fontSize: 13 },
+  btnWrapper:     { borderRadius: 14, overflow: 'hidden', marginTop: 4 },
+  btn:            { paddingVertical: 15, alignItems: 'center' },
+  btnText:        { color: '#fff', fontSize: 16, fontWeight: '700' },
+  forgotRow:      { alignItems: 'center', marginTop: 16 },
+  forgotText:     { color: '#7c3aed', fontSize: 13, fontWeight: '500' },
 })
