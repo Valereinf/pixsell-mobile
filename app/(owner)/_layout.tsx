@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { Tabs, useRouter } from 'expo-router'
-import {
-  Modal, View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView,
-} from 'react-native'
+import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../lib/supabase'
 
@@ -11,25 +10,11 @@ const EXTRA_ITEMS = [
   { route: '/(owner)/agenda-collab', icon: 'calendar-outline',      label: 'Agenda collab.' },
   { route: '/(owner)/services',      icon: 'cut-outline',           label: 'Services' },
   { route: '/(owner)/marketing',     icon: 'megaphone-outline',     label: 'Marketing' },
-  { route: '/(owner)/liste-attente', icon: 'time-outline',          label: 'Liste d\'attente' },
+  { route: '/(owner)/liste-attente', icon: 'time-outline',          label: "Liste d'attente" },
   { route: '/(owner)/statistiques',  icon: 'bar-chart-outline',     label: 'Statistiques' },
   { route: '/(owner)/avis',          icon: 'star-outline',          label: 'Avis clients' },
   { route: '/(owner)/apparence',     icon: 'color-palette-outline', label: 'Apparence' },
 ] as const
-
-function MoreButton({ onPress }: { onPress: () => void }) {
-  return (
-    <TouchableOpacity onPress={onPress} style={moreStyles.btn}>
-      <Ionicons name="menu-outline" size={24} color="#6b7280" />
-      <Text style={moreStyles.label}>Plus</Text>
-    </TouchableOpacity>
-  )
-}
-
-const moreStyles = StyleSheet.create({
-  btn:   { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 },
-  label: { fontSize: 10, color: '#6b7280', marginTop: 2 },
-})
 
 export default function OwnerLayout() {
   const router = useRouter()
@@ -66,22 +51,18 @@ export default function OwnerLayout() {
         <Tabs.Screen name="statistiques"  options={{ href: null }} />
         <Tabs.Screen name="avis"          options={{ href: null }} />
         <Tabs.Screen name="apparence"     options={{ href: null }} />
-
-        {/* "Plus" tab — opens modal */}
-        <Tabs.Screen
-          name="(more)"
-          options={{
-            title: 'Plus',
-            tabBarIcon: ({ color }) => <Ionicons name="menu-outline" size={22} color={color} />,
-            tabBarButton: () => <MoreButton onPress={() => setMoreOpen(true)} />,
-          }}
-        />
       </Tabs>
+
+      {/* "Plus" button floating above tab bar */}
+      <TouchableOpacity style={styles.moreBtn} onPress={() => setMoreOpen(true)}>
+        <Ionicons name="menu-outline" size={22} color="#6b7280" />
+        <Text style={styles.moreBtnLabel}>Plus</Text>
+      </TouchableOpacity>
 
       {/* More modal */}
       <Modal visible={moreOpen} animationType="slide" transparent onRequestClose={() => setMoreOpen(false)}>
         <TouchableOpacity style={modal.backdrop} activeOpacity={1} onPress={() => setMoreOpen(false)} />
-        <SafeAreaView style={modal.sheet}>
+        <SafeAreaView edges={['bottom']} style={modal.sheet}>
           <View style={modal.handle} />
           <Text style={modal.sheetTitle}>Autres sections</Text>
           <ScrollView>
@@ -124,11 +105,22 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
     height: 64,
   },
+  moreBtn: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: '20%',
+    height: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  moreBtnLabel: { fontSize: 10, color: '#6b7280', fontWeight: '600' },
 })
 
 const modal = StyleSheet.create({
   backdrop:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet:      { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingBottom: 32, maxHeight: '75%' },
+  sheet:      { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingBottom: 16, maxHeight: '75%' },
   handle:     { width: 40, height: 4, backgroundColor: '#e5e7eb', borderRadius: 2, alignSelf: 'center', marginTop: 12, marginBottom: 20 },
   sheetTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 12 },
   row:        { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 14 },
