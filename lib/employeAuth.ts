@@ -3,17 +3,23 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 const NETLIFY_URL = 'https://app.pixsellmedia.ca'
 
 export async function loginEmploye({ slug, email, password }: { slug: string; email: string; password: string }) {
-  const res = await fetch(`${NETLIFY_URL}/.netlify/functions/employe-login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ slug, email, password }),
-  })
-  const data = await res.json()
-  console.log('[loginEmploye] status:', res.status, 'data:', JSON.stringify(data))
-  if (!res.ok) throw new Error(data.error ?? data.message ?? `Erreur ${res.status}`)
-  if (!data.token) throw new Error('Token manquant dans la réponse')
-  await AsyncStorage.setItem(`employe_token_${data.company_id}`, data.token)
-  return data
+  console.log('[loginEmploye] calling:', NETLIFY_URL, { slug, email })
+  try {
+    const res = await fetch(`${NETLIFY_URL}/.netlify/functions/employe-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, email, password }),
+    })
+    const data = await res.json()
+    console.log('[loginEmploye] status:', res.status, 'data:', JSON.stringify(data))
+    if (!res.ok) throw new Error(data.error ?? data.message ?? `Erreur ${res.status}`)
+    if (!data.token) throw new Error('Token manquant dans la réponse')
+    await AsyncStorage.setItem(`employe_token_${data.company_id}`, data.token)
+    return data
+  } catch (e) {
+    console.log('[loginEmploye] ERROR:', e instanceof Error ? e.message : String(e))
+    throw e
+  }
 }
 
 export async function getStoredToken(companyId: string): Promise<string | null> {
