@@ -365,6 +365,8 @@ export default function CalendrierScreen() {
   const visibleEmps = employes.filter(e => visibleEmpIds.has(e.id))
   const weekEmp = employes.find(e => e.id === weekEmpId) ?? employes[0]
   const weekColW = (SCREEN_W - TIME_COL_WIDTH) / 7
+  const dayVisibleCols = Math.min(visibleEmps.length || 1, 3)
+  const DAY_COL_W = (SCREEN_W - TIME_COL_WIDTH - 16) / dayVisibleCols
 
   if (loading) return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f5f3ff' }}>
@@ -438,7 +440,7 @@ export default function CalendrierScreen() {
       {viewMode === 'day' && (
         <View style={{ flex: 1 }}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={{ width: TIME_COL_WIDTH + visibleEmps.length * COLUMN_WIDTH }}>
+            <View style={{ width: TIME_COL_WIDTH + visibleEmps.length * DAY_COL_W }}>
 
               {/* Employee headers — plain row, not a ScrollView */}
               <View style={{ flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
@@ -446,7 +448,7 @@ export default function CalendrierScreen() {
                 {visibleEmps.map((emp, i) => {
                   const color = empColor(emp, i)
                   return (
-                    <View key={emp.id} style={{ width: COLUMN_WIDTH, padding: 8, alignItems: 'center', borderRightWidth: 1, borderRightColor: 'rgba(0,0,0,0.05)' }}>
+                    <View key={emp.id} style={{ width: DAY_COL_W, padding: 8, alignItems: 'center', borderRightWidth: 1, borderRightColor: 'rgba(0,0,0,0.05)' }}>
                       <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: color, alignItems: 'center', justifyContent: 'center', marginBottom: 2 }}>
                         <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{emp.nom.slice(0, 2).toUpperCase()}</Text>
                       </View>
@@ -467,7 +469,7 @@ export default function CalendrierScreen() {
                       </View>
                     ))}
                   </View>
-                  {visibleEmps.map((emp, i) => renderColumn(emp, i, selectedDate, COLUMN_WIDTH))}
+                  {visibleEmps.map((emp, i) => renderColumn(emp, i, selectedDate, DAY_COL_W))}
                 </View>
               </ScrollView>
 

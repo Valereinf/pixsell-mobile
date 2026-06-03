@@ -982,7 +982,7 @@ function KpiCard({ label, value, color }: { label: string; value: string; color:
 const s = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
   headerTitle: { fontSize: 24, fontWeight: '800', color: '#111827' },
-  tabsScroll: { flexGrow: 0 },
+  tabsScroll: { flexGrow: 0, flexShrink: 0 },
   tabChip: {
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
     backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb',

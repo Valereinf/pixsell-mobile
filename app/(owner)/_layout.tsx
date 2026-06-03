@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Tabs, useRouter } from 'expo-router'
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
+import { BlurView } from 'expo-blur'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../lib/supabase'
@@ -36,10 +37,26 @@ export default function OwnerLayout() {
           screenOptions={{
             headerShown: false,
             tabBarStyle: {
-              ...styles.tabBar,
+              position: 'absolute',
+              backgroundColor: 'rgba(255,255,255,0.85)',
+              borderTopWidth: 0,
+              elevation: 0,
               height: 64 + insets.bottom,
               paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              shadowColor: '#7c3aed',
+              shadowOffset: { width: 0, height: -4 },
+              shadowOpacity: 0.08,
+              shadowRadius: 16,
             },
+            tabBarBackground: () => (
+              <BlurView
+                intensity={80}
+                tint="light"
+                style={StyleSheet.absoluteFill}
+              />
+            ),
             tabBarActiveTintColor: '#7c3aed',
             tabBarInactiveTintColor: '#6b7280',
             tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },

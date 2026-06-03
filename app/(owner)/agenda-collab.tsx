@@ -1121,7 +1121,7 @@ export default function AgendaCollabScreen() {
 const s = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
   headerTitle: { fontSize: 22, fontWeight: '800', color: '#111827' },
-  tabsScroll: { flexGrow: 0 },
+  tabsScroll: { flexGrow: 0, flexShrink: 0 },
   tabChip: {
     paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
     backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb',
