@@ -572,7 +572,7 @@ export default function CalendrierScreen() {
       </TouchableOpacity>
 
       {/* ── Create RDV Modal ── */}
-      <Modal visible={createModal} animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'overFullScreen'} onRequestClose={() => { setCreateModal(false); setEditingResaId(null) }}>
+      <Modal key={editingResaId ?? 'create'} visible={createModal} animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'overFullScreen'} onRequestClose={() => { setCreateModal(false); setEditingResaId(null) }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top', 'bottom']}>
             <View style={s.modalHeader}>

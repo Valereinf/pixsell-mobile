@@ -9,7 +9,9 @@ export async function loginEmploye({ slug, email, password }: { slug: string; em
     body: JSON.stringify({ slug, email, password }),
   })
   const data = await res.json()
-  if (!res.ok) throw new Error(data.error ?? 'Identifiants invalides')
+  console.log('[loginEmploye] status:', res.status, 'data:', JSON.stringify(data))
+  if (!res.ok) throw new Error(data.error ?? data.message ?? `Erreur ${res.status}`)
+  if (!data.token) throw new Error('Token manquant dans la réponse')
   await AsyncStorage.setItem(`employe_token_${data.company_id}`, data.token)
   return data
 }
