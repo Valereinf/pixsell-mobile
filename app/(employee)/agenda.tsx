@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
@@ -176,6 +177,7 @@ function Card({ children, style }: { children: React.ReactNode; style?: object }
 
 export default function EmployePortal() {
   const insets = useSafeAreaInsets()
+  const router = useRouter()
   const [view, setView] = useState<'loading' | 'login' | 'portal'>('loading')
   const [tab, setTab] = useState<Tab>('accueil')
 
@@ -479,6 +481,15 @@ export default function EmployePortal() {
                   : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Se connecter</Text>
                 }
               </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => router.replace('/(auth)/login')}
+              style={{ marginTop: 16, alignItems: 'center' }}
+            >
+              <Text style={{ fontSize: 13, color: '#9ca3af' }}>
+                Connexion Owner / Admin →
+              </Text>
             </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
