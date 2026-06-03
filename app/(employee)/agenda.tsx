@@ -237,7 +237,7 @@ export default function EmployePortal() {
   useEffect(() => { setView('login') }, [])
 
   function applyMeData(data: Record<string, unknown>) {
-    const emp = data.employe as EmployeProfile
+    const emp = (data.employe ?? data) as EmployeProfile
     setEmploye(emp)
     setResasToday((data.reservations_today as ResaToday[]) ?? [])
     setStatutToday((data.statut_today as { statut: string } | null)?.statut ?? null)
