@@ -31,22 +31,22 @@ export default function Login() {
         const role = data.session.user.app_metadata?.role ?? 'owner'
         router.replace(role === 'employee' ? '/(employee)/agenda' : '/(owner)/dashboard')
       } else {
-        // Employee: find company by slug, then validate against employes table
-        const { data: company, error: compErr } = await supabase
-          .from('companies').select('id').eq('slug', slug.toLowerCase().trim()).single()
-        if (compErr || !company) throw new Error('Salon introuvable')
+        // Employee: appel Netlify function employe-login
+        const cleanSlug = slug.toLowerCase().trim()
+        const cleanEmail = email.toLowerCase().trim()
 
-        const { data: employe, error: empErr } = await supabase
-          .from('employes').select('id, nom, email')
-          .eq('email', email.toLowerCase().trim())
-          .eq('company_id', company.id)
-          .eq('actif', true)
-          .single()
-        if (empErr || !employe) throw new Error('Identifiants invalides')
+        const res = await fetch('https://app.pixsellmedia.ca/.netlify/functions/employe-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug: cleanSlug, email: cleanEmail, password }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error ?? 'Identifiants invalides')
+        if (!data.token) throw new Error('Token manquant')
 
-        // Sign in via Supabase auth (employee must have an auth account)
-        const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password })
-        if (signInErr) throw new Error(signInErr.message)
+        // Stocker le token dans AsyncStorage
+        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default
+        await AsyncStorage.setItem(`employe_token_${data.company_id}`, data.token)
 
         router.replace('/(employee)/agenda')
       }
