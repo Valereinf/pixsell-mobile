@@ -7,6 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { supabase } from '../../lib/supabase'
 import type { Company } from '../../lib/types'
+import { useOwnerContext } from '../../lib/ownerContext'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -231,7 +232,8 @@ function MethodePill({ value, selected, onPress }: { value: EncaisserForm['metho
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function ComptabiliteScreen() {
-  const [company, setCompany]         = useState<Company | null>(null)
+  const { company: ctxCompany }       = useOwnerContext()
+  const [company, setCompany]         = useState<Company | null>(ctxCompany)
   const [tab, setTab]                 = useState<TabId>('dashboard')
   const [period, setPeriod]           = useState<PeriodType>('month')
   const [customStart, setCustomStart] = useState('')
@@ -290,17 +292,13 @@ export default function ComptabiliteScreen() {
 
   // ── Load company ──────────────────────────────────────────────────
   useEffect(() => {
-    ;(async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
-      const { data } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('owner_id', session.user.id)
-        .single()
-      if (data) setCompany(data)
-    })()
-  }, [])
+    if (ctxCompany) { setCompany(ctxCompany); return }
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase.from('companies').select('*').eq('owner_email', user.email).single()
+        .then(({ data }) => { if (data) setCompany(data as Company) })
+    })
+  }, [ctxCompany])
 
   // ── Load data on company / period change ──────────────────────────
   const { start, end } = buildDateRange(period, customStart, customEnd)

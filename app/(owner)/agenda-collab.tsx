@@ -802,7 +802,7 @@ export default function AgendaCollabScreen() {
                         <View key={sv.employe_id} style={s.tableRow}>
                           <Text style={[s.td, { flex: 2 }]}>{[sv.prenom, sv.nom].filter(Boolean).join(' ')}</Text>
                           <Text style={[s.td, { flex: 1, textAlign: 'center' }]}>{sv.jours_vacances_annuels}</Text>
-                          <Text style={[s.td, { flex: 1, textAlign: 'center', color: '#dc2626' }]}>{sv.jours_utilises}</Text>
+                          <Text style={[s.td, { flex: 1, textAlign: 'center', color: '#dc2626' }]}>{Number(sv.jours_utilises).toFixed(1)}</Text>
                           <Text style={[s.td, { flex: 1, textAlign: 'center', color: sv.jours_restants < 3 ? '#dc2626' : '#059669', fontWeight: '700' }]}>{Number(sv.jours_restants).toFixed(1)}</Text>
                         </View>
                       ))}
