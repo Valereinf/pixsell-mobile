@@ -258,7 +258,14 @@ export default function EmployePortal() {
     setLoggingIn(true)
     setLoginErr('')
     try {
-      const data = await loginEmploye({ slug, email: loginEmail, password: loginPwd })
+      const cleanSlug = slug
+        .trim()
+        .toLowerCase()
+        .replace(/^https?:\/\/[^/]+\//, '')
+        .replace(/^\/+/, '')
+        .replace(/\/+$/, '')
+        .split('/')[0]
+      const data = await loginEmploye({ slug: cleanSlug, email: loginEmail, password: loginPwd })
       const tok = data.token as string
       setToken(tok)
       applyMeData(data)
@@ -398,14 +405,16 @@ export default function EmployePortal() {
               <Text style={{ color: '#9ca3af', marginTop: 4 }}>Portail collaborateur</Text>
             </View>
 
+            <Text style={{ color: '#374151', fontWeight: '600', fontSize: 13, marginBottom: 4 }}>Identifiant de l'établissement</Text>
             <TextInput
               value={slug}
               onChangeText={setSlug}
-              placeholder="Identifiant du salon (slug)"
+              placeholder="ex: king-cuts"
               autoCapitalize="none"
               style={s.input}
               placeholderTextColor="#9ca3af"
             />
+            <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: -8, marginBottom: 12 }}>Fourni par votre responsable</Text>
             <TextInput
               value={loginEmail}
               onChangeText={setLoginEmail}
