@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, ActivityIndicator, Alert, Platform, KeyboardAvoidingView,
@@ -234,7 +235,29 @@ export default function EmployePortal() {
 
   // ── Init ────────────────────────────────────────────────────────────────────
 
-  useEffect(() => { setView('login') }, [])
+  useEffect(() => {
+    async function init() {
+      const keys = await AsyncStorage.getAllKeys()
+      const tokenKey = keys.find(k => k.startsWith('employe_token_'))
+      if (tokenKey) {
+        const tok = await AsyncStorage.getItem(tokenKey)
+        if (tok) {
+          setToken(tok)
+          try {
+            const data = await getMe(tok)
+            applyMeData(data)
+            await loadTabData(tok, 'accueil')
+            setView('portal')
+            return
+          } catch {
+            await AsyncStorage.removeItem(tokenKey)
+          }
+        }
+      }
+      setView('login')
+    }
+    init()
+  }, [])
 
   function applyMeData(data: Record<string, unknown>) {
     const emp = (data.employe ?? data) as EmployeProfile
@@ -545,10 +568,10 @@ export default function EmployePortal() {
                 <View>
                   <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>Congés restants</Text>
                   <Text style={{ color: '#fff', fontSize: 28, fontWeight: '800' }}>
-                    {soldeVacances.jours_restants}j
+                    {Number(soldeVacances.jours_restants).toFixed(1)}j
                   </Text>
                   <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>
-                    / {soldeVacances.jours_vacances_annuels}j annuels
+                    / {Number(soldeVacances.jours_vacances_annuels).toFixed(1)}j annuels
                   </Text>
                 </View>
                 <Text style={{ fontSize: 36 }}>🏖️</Text>
