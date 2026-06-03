@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
+  KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Image,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
@@ -63,12 +63,10 @@ export default function Login() {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
           {/* Logo */}
-          <View style={styles.logoRow}>
-            <View style={styles.logoBox}>
-              <Text style={styles.logoLetter}>P</Text>
-            </View>
-            <Text style={styles.logoText}>PIXSELL</Text>
-          </View>
+          <Image
+            source={require('../../assets/logo-pixsell.png')}
+            style={{ width: 220, height: 70, resizeMode: 'contain', marginBottom: 8 }}
+          />
 
           <Text style={styles.title}>Connexion</Text>
           <Text style={styles.subtitle}>Accédez à votre espace professionnel</Text>
