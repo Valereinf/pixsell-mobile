@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Tabs, useRouter } from 'expo-router'
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../lib/supabase'
 import { OwnerContext } from '../../lib/ownerContext'
@@ -20,6 +20,7 @@ const EXTRA_ITEMS = [
 
 export default function OwnerLayout() {
   const router = useRouter()
+  const insets = useSafeAreaInsets()
   const [moreOpen, setMoreOpen] = useState(false)
   const [company, setCompany]   = useState<Company | null>(null)
 
@@ -34,7 +35,11 @@ export default function OwnerLayout() {
         <Tabs
           screenOptions={{
             headerShown: false,
-            tabBarStyle: styles.tabBar,
+            tabBarStyle: {
+              ...styles.tabBar,
+              height: 64 + insets.bottom,
+              paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+            },
             tabBarActiveTintColor: '#7c3aed',
             tabBarInactiveTintColor: '#6b7280',
             tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },

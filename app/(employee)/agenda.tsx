@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, ActivityIndicator, Alert, Platform, KeyboardAvoidingView,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
@@ -174,6 +174,7 @@ function Card({ children, style }: { children: React.ReactNode; style?: object }
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function EmployePortal() {
+  const insets = useSafeAreaInsets()
   const [view, setView] = useState<'loading' | 'login' | 'portal'>('loading')
   const [tab, setTab] = useState<Tab>('accueil')
 
@@ -1069,7 +1070,7 @@ export default function EmployePortal() {
       </ScrollView>
 
       {/* Bottom tab bar */}
-      <View style={s.tabBar}>
+      <View style={[s.tabBar, { paddingBottom: insets.bottom > 0 ? insets.bottom : 8 }]}>
         {([
           { id: 'accueil',        icon: 'home-outline',         label: 'Accueil',   badge: unreadNotif },
           { id: 'mesrdv',         icon: 'calendar-outline',     label: 'Mes RDV',   badge: 0 },

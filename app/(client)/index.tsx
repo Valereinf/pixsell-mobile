@@ -4,7 +4,7 @@ import {
   StyleSheet, ActivityIndicator, Modal, Share, Image,
   Platform, KeyboardAvoidingView,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as Clipboard from 'expo-clipboard'
@@ -172,6 +172,7 @@ function Stars({ note, size = 16 }: { note: number; size?: number }) {
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function ClientPortal() {
+  const insets = useSafeAreaInsets()
   const [view, setView] = useState<ViewState>('loading')
   const [slug, setSlug] = useState('')
   const [company, setCompany] = useState<Company | null>(null)
@@ -1259,7 +1260,7 @@ export default function ClientPortal() {
       </View>
 
       {/* Tab bar horizontal */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabScrollView} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 8 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabScrollView} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 8, paddingBottom: insets.bottom > 0 ? insets.bottom : 8 }}>
         {PROFILE_TABS.map(t => (
           <TouchableOpacity key={t.id} onPress={() => switchTab(t.id)} style={[s.tabChip, profileTab === t.id && s.tabChipActive]}>
             <Text style={[s.tabChipText, profileTab === t.id && s.tabChipTextActive]}>{t.label}</Text>
