@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../lib/supabase'
 import type { Company } from '../../lib/types'
+import { useOwnerContext } from '../../lib/ownerContext'
 
 const NETLIFY_URL = 'https://aesthetic-yeot-2d7094.netlify.app'
 
@@ -188,7 +189,7 @@ function Picker<T extends string>({ label, value, options, onChange }: {
 
 export default function EmployesScreen() {
   const router = useRouter()
-  const [company, setCompany]     = useState<Company | null>(null)
+  const { company } = useOwnerContext()
   const [employes, setEmployes]   = useState<EmployeRow[]>([])
   const [soldesMap, setSoldesMap] = useState<Record<string, number>>({})
   const [loading, setLoading]     = useState(true)
@@ -209,22 +210,9 @@ export default function EmployesScreen() {
 
   // ── Load ────────────────────────────────────────────────────────────
   useEffect(() => {
-    ;(async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
-      const { data } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('owner_id', session.user.id)
-        .single()
-      if (data) setCompany(data)
-    })()
-  }, [])
-
-  useEffect(() => {
     if (!company) return
     loadAll()
-  }, [company])
+  }, [company?.id])
 
   async function loadAll() {
     setLoading(true)

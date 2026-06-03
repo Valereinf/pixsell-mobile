@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import { supabase } from '../../lib/supabase'
 import type { Company } from '../../lib/types'
+import { useOwnerContext } from '../../lib/ownerContext'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -35,7 +36,7 @@ const EMPTY_FORM: FormData = { nom: '', description: '', prix: '', duree: '' }
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function ServicesScreen() {
-  const [company, setCompany]     = useState<Company | null>(null)
+  const { company } = useOwnerContext()
   const [services, setServices]   = useState<ServiceRow[]>([])
   const [loading, setLoading]     = useState(true)
   const [saving, setSaving]       = useState(false)
@@ -50,17 +51,7 @@ export default function ServicesScreen() {
   const [removeImage, setRemoveImage] = useState(false)
 
   // ── Load ────────────────────────────────────────────────────────────
-  useEffect(() => {
-    ;(async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
-      const { data } = await supabase
-        .from('companies').select('*').eq('owner_id', session.user.id).single()
-      if (data) setCompany(data)
-    })()
-  }, [])
-
-  useEffect(() => { if (company) load() }, [company])
+  useEffect(() => { if (company) load() }, [company?.id])
 
   async function load() {
     setLoading(true)

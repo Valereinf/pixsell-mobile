@@ -4,6 +4,8 @@ import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../lib/supabase'
+import { OwnerContext } from '../../lib/ownerContext'
+import type { Company } from '../../lib/types'
 
 const EXTRA_ITEMS = [
   { route: '/(owner)/employes',      icon: 'people-outline',        label: 'Employés' },
@@ -19,6 +21,7 @@ const EXTRA_ITEMS = [
 export default function OwnerLayout() {
   const router = useRouter()
   const [moreOpen, setMoreOpen] = useState(false)
+  const [company, setCompany]   = useState<Company | null>(null)
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -26,69 +29,82 @@ export default function OwnerLayout() {
   }
 
   return (
-    <>
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarStyle: styles.tabBar,
-          tabBarActiveTintColor: '#7c3aed',
-          tabBarInactiveTintColor: '#6b7280',
-          tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
-        }}
-      >
-        <Tabs.Screen name="calendrier"   options={{ title: 'Calendrier',   tabBarIcon: ({ color }) => <Ionicons name="calendar-clear-outline" size={22} color={color} /> }} />
-        <Tabs.Screen name="reservations" options={{ title: 'Réservations', tabBarIcon: ({ color }) => <Ionicons name="calendar-outline"       size={22} color={color} /> }} />
-        <Tabs.Screen name="dashboard"    options={{ title: 'Dashboard',    tabBarIcon: ({ color }) => <Ionicons name="grid-outline"            size={22} color={color} /> }} />
-        <Tabs.Screen name="clients"      options={{ title: 'Clients',      tabBarIcon: ({ color }) => <Ionicons name="people-circle-outline"   size={22} color={color} /> }} />
-        <Tabs.Screen name="comptabilite" options={{ title: 'Compta',       tabBarIcon: ({ color }) => <Ionicons name="receipt-outline"         size={22} color={color} /> }} />
+    <OwnerContext.Provider value={{ company, setCompany }}>
+      <>
+        <Tabs
+          screenOptions={{
+            headerShown: false,
+            tabBarStyle: styles.tabBar,
+            tabBarActiveTintColor: '#7c3aed',
+            tabBarInactiveTintColor: '#6b7280',
+            tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
+          }}
+        >
+          <Tabs.Screen name="calendrier"   options={{ title: 'Calendrier',   tabBarIcon: ({ color }) => <Ionicons name="calendar-clear-outline" size={22} color={color} /> }} />
+          <Tabs.Screen name="reservations" options={{ title: 'Réservations', tabBarIcon: ({ color }) => <Ionicons name="calendar-outline"       size={22} color={color} /> }} />
+          <Tabs.Screen name="dashboard"    options={{ title: 'Dashboard',    tabBarIcon: ({ color }) => <Ionicons name="grid-outline"            size={22} color={color} /> }} />
+          <Tabs.Screen name="clients"      options={{ title: 'Clients',      tabBarIcon: ({ color }) => <Ionicons name="people-circle-outline"   size={22} color={color} /> }} />
+          <Tabs.Screen name="comptabilite" options={{ title: 'Compta',       tabBarIcon: ({ color }) => <Ionicons name="receipt-outline"         size={22} color={color} /> }} />
 
-        {/* Hidden screens — accessible via More modal */}
-        <Tabs.Screen name="employes"      options={{ href: null }} />
-        <Tabs.Screen name="agenda-collab" options={{ href: null }} />
-        <Tabs.Screen name="services"      options={{ href: null }} />
-        <Tabs.Screen name="marketing"     options={{ href: null }} />
-        <Tabs.Screen name="liste-attente" options={{ href: null }} />
-        <Tabs.Screen name="statistiques"  options={{ href: null }} />
-        <Tabs.Screen name="avis"          options={{ href: null }} />
-        <Tabs.Screen name="apparence"     options={{ href: null }} />
-      </Tabs>
+          {/* "Plus" — 6th tab, intercepts press to open modal instead of navigating */}
+          <Tabs.Screen
+            name="__more__"
+            options={{
+              title: 'Plus',
+              tabBarButton: () => (
+                <TouchableOpacity
+                  onPress={() => setMoreOpen(true)}
+                  style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2 }}
+                >
+                  <Ionicons name="menu-outline" size={22} color="#6b7280" />
+                  <Text style={{ fontSize: 10, color: '#6b7280', fontWeight: '600' }}>Plus</Text>
+                </TouchableOpacity>
+              ),
+            }}
+          />
 
-      {/* "Plus" button floating above tab bar */}
-      <TouchableOpacity style={styles.moreBtn} onPress={() => setMoreOpen(true)}>
-        <Ionicons name="menu-outline" size={22} color="#6b7280" />
-        <Text style={styles.moreBtnLabel}>Plus</Text>
-      </TouchableOpacity>
+          {/* Hidden screens — accessible via More modal */}
+          <Tabs.Screen name="employes"      options={{ href: null }} />
+          <Tabs.Screen name="agenda-collab" options={{ href: null }} />
+          <Tabs.Screen name="services"      options={{ href: null }} />
+          <Tabs.Screen name="marketing"     options={{ href: null }} />
+          <Tabs.Screen name="liste-attente" options={{ href: null }} />
+          <Tabs.Screen name="statistiques"  options={{ href: null }} />
+          <Tabs.Screen name="avis"          options={{ href: null }} />
+          <Tabs.Screen name="apparence"     options={{ href: null }} />
+        </Tabs>
 
-      {/* More modal */}
-      <Modal visible={moreOpen} animationType="slide" transparent onRequestClose={() => setMoreOpen(false)}>
-        <TouchableOpacity style={modal.backdrop} activeOpacity={1} onPress={() => setMoreOpen(false)} />
-        <SafeAreaView edges={['bottom']} style={modal.sheet}>
-          <View style={modal.handle} />
-          <Text style={modal.sheetTitle}>Autres sections</Text>
-          <ScrollView>
-            {EXTRA_ITEMS.map(item => (
-              <TouchableOpacity
-                key={item.route}
-                style={modal.row}
-                onPress={() => { setMoreOpen(false); router.push(item.route) }}
-              >
-                <View style={modal.iconBox}>
-                  <Ionicons name={item.icon as keyof typeof Ionicons.glyphMap} size={20} color="#7c3aed" />
+        {/* More modal */}
+        <Modal visible={moreOpen} animationType="slide" transparent onRequestClose={() => setMoreOpen(false)}>
+          <TouchableOpacity style={modal.backdrop} activeOpacity={1} onPress={() => setMoreOpen(false)} />
+          <SafeAreaView edges={['bottom']} style={modal.sheet}>
+            <View style={modal.handle} />
+            <Text style={modal.sheetTitle}>Autres sections</Text>
+            <ScrollView>
+              {EXTRA_ITEMS.map(item => (
+                <TouchableOpacity
+                  key={item.route}
+                  style={modal.row}
+                  onPress={() => { setMoreOpen(false); router.push(item.route) }}
+                >
+                  <View style={modal.iconBox}>
+                    <Ionicons name={item.icon as keyof typeof Ionicons.glyphMap} size={20} color="#7c3aed" />
+                  </View>
+                  <Text style={modal.rowLabel}>{item.label}</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity style={[modal.row, { marginTop: 8 }]} onPress={handleLogout}>
+                <View style={[modal.iconBox, { backgroundColor: 'rgba(239,68,68,0.08)' }]}>
+                  <Ionicons name="log-out-outline" size={20} color="#ef4444" />
                 </View>
-                <Text style={modal.rowLabel}>{item.label}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
+                <Text style={[modal.rowLabel, { color: '#ef4444' }]}>Déconnexion</Text>
               </TouchableOpacity>
-            ))}
-            <TouchableOpacity style={[modal.row, { marginTop: 8 }]} onPress={handleLogout}>
-              <View style={[modal.iconBox, { backgroundColor: 'rgba(239,68,68,0.08)' }]}>
-                <Ionicons name="log-out-outline" size={20} color="#ef4444" />
-              </View>
-              <Text style={[modal.rowLabel, { color: '#ef4444' }]}>Déconnexion</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
-    </>
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+      </>
+    </OwnerContext.Provider>
   )
 }
 
@@ -105,17 +121,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
     height: 64,
   },
-  moreBtn: {
-    position: 'absolute',
-    right: 0,
-    bottom: 0,
-    width: '20%',
-    height: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-  },
-  moreBtnLabel: { fontSize: 10, color: '#6b7280', fontWeight: '600' },
 })
 
 const modal = StyleSheet.create({

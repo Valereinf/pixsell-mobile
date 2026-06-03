@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../lib/supabase'
 import type { Company } from '../../lib/types'
+import { useOwnerContext } from '../../lib/ownerContext'
 
 const NETLIFY_URL = 'https://aesthetic-yeot-2d7094.netlify.app'
 
@@ -128,7 +129,7 @@ function SectionCard({ title, children }: { title?: string; children: React.Reac
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function MarketingScreen() {
-  const [company, setCompany] = useState<Company | null>(null)
+  const { company } = useOwnerContext()
   const [tab, setTab]         = useState<TabId>('overview')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving]   = useState(false)
@@ -194,36 +195,28 @@ export default function MarketingScreen() {
   const [confirmDelCamp, setConfirmDelCamp]   = useState<string | null>(null)
   const [confirmDelPromo, setConfirmDelPromo] = useState<string | null>(null)
 
-  // ── Load company ──────────────────────────────────────────────────────
-
+  // ── Init settings from context ────────────────────────────────────────
   useEffect(() => {
-    ;(async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
-      const { data } = await supabase.from('companies').select('*').eq('owner_id', session.user.id).single()
-      if (data) {
-        setCompany(data)
-        const c = data as Company & Record<string, unknown>
-        setFidActif(!!(c.fidelite_actif))
-        setFidPointsRdv(String(c.fidelite_points_par_rdv ?? 10))
-        setFidPointsDollar(String(c.fidelite_points_par_dollar ?? 1))
-        setFidSeuil(String(c.fidelite_seuil_cadeau ?? 100))
-        setFidValeur(String(c.fidelite_valeur_cadeau ?? 5))
-        setFidExpiration(String(c.fidelite_expiration_jours ?? 365))
-        setRempActif(!!(c.remplissage_actif))
-        setRempDelai(String(c.remplissage_delai_heures ?? 24))
-        setRempRemise(String(c.remplissage_remise_pct ?? 20))
-        setRempNbClients(String(c.remplissage_nb_clients ?? 10))
-        setRempMessage(String(c.remplissage_message ?? ''))
-        setParrActif(!!(c.parrainage_actif))
-        setParrRemiseParrain(String(c.parrainage_remise_parrain ?? 10))
-        setParrRemiseFilleul(String(c.parrainage_remise_filleul ?? 10))
-        setParrMessage(String(c.parrainage_message ?? ''))
-      }
-    })()
-  }, [])
+    if (!company) return
+    const c = company as Company & Record<string, unknown>
+    setFidActif(!!(c.fidelite_actif))
+    setFidPointsRdv(String(c.fidelite_points_par_rdv ?? 10))
+    setFidPointsDollar(String(c.fidelite_points_par_dollar ?? 1))
+    setFidSeuil(String(c.fidelite_seuil_cadeau ?? 100))
+    setFidValeur(String(c.fidelite_valeur_cadeau ?? 5))
+    setFidExpiration(String(c.fidelite_expiration_jours ?? 365))
+    setRempActif(!!(c.remplissage_actif))
+    setRempDelai(String(c.remplissage_delai_heures ?? 24))
+    setRempRemise(String(c.remplissage_remise_pct ?? 20))
+    setRempNbClients(String(c.remplissage_nb_clients ?? 10))
+    setRempMessage(String(c.remplissage_message ?? ''))
+    setParrActif(!!(c.parrainage_actif))
+    setParrRemiseParrain(String(c.parrainage_remise_parrain ?? 10))
+    setParrRemiseFilleul(String(c.parrainage_remise_filleul ?? 10))
+    setParrMessage(String(c.parrainage_message ?? ''))
+  }, [company?.id])
 
-  useEffect(() => { if (company) loadAll() }, [company])
+  useEffect(() => { if (company) loadAll() }, [company?.id])
 
   async function loadAll() {
     setLoading(true)

@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../lib/supabase'
 import type { Company } from '../../lib/types'
+import { useOwnerContext } from '../../lib/ownerContext'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -52,7 +53,7 @@ function Stars({ note, size = 14 }: { note: number; size?: number }) {
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function AvisScreen() {
-  const [company, setCompany]   = useState<Company | null>(null)
+  const { company } = useOwnerContext()
   const [avis, setAvis]         = useState<AvisRow[]>([])
   const [employes, setEmployes] = useState<EmpRow[]>([])
   const [loading, setLoading]   = useState(true)
@@ -68,16 +69,7 @@ export default function AvisScreen() {
   const [replyText, setReplyText]   = useState<Record<string, string>>({})
   const [confirmDel, setConfirmDel] = useState<string | null>(null)
 
-  useEffect(() => {
-    ;(async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
-      const { data } = await supabase.from('companies').select('*').eq('owner_id', session.user.id).single()
-      if (data) setCompany(data)
-    })()
-  }, [])
-
-  useEffect(() => { if (company) load() }, [company])
+  useEffect(() => { if (company) load() }, [company?.id])
 
   async function load() {
     setLoading(true)

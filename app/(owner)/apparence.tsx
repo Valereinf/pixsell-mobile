@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import * as ImagePicker from 'expo-image-picker'
 import { supabase } from '../../lib/supabase'
 import type { Company } from '../../lib/types'
+import { useOwnerContext } from '../../lib/ownerContext'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -196,7 +197,7 @@ function ImageField({ label, uri, onPress, uploading }: { label: string; uri: st
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function ApparenceOwner() {
-  const [company, setCompany]     = useState<Company | null>(null)
+  const { company } = useOwnerContext()
   const [form, setForm]           = useState<AppForm | null>(null)
   const [loading, setLoading]     = useState(true)
   const [tab, setTab]             = useState<TabId>('identite')
@@ -205,14 +206,10 @@ export default function ApparenceOwner() {
   const [uploading, setUploading] = useState<string | null>(null)
 
   useEffect(() => {
-    ;(async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
-      const { data } = await supabase.from('companies').select('*').eq('owner_id', session.user.id).single()
-      if (data) { setCompany(data as Company); setForm(initFromCompany(data as Company)) }
-      setLoading(false)
-    })()
-  }, [])
+    if (!company) return
+    setForm(initFromCompany(company))
+    setLoading(false)
+  }, [company?.id])
 
   const setField = <K extends keyof AppForm>(k: K, v: AppForm[K]) =>
     setForm(f => f ? { ...f, [k]: v } : f)

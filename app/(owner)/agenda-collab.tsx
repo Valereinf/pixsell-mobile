@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../lib/supabase'
 import type { Company } from '../../lib/types'
+import { useOwnerContext } from '../../lib/ownerContext'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -196,7 +197,7 @@ function Avatar({ emp, size = 32, index = 0 }: { emp: Employe; size?: number; in
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function AgendaCollabScreen() {
-  const [company, setCompany]   = useState<Company | null>(null)
+  const { company } = useOwnerContext()
   const [tab, setTab]           = useState<TabId>('calendrier')
   const [loading, setLoading]   = useState(true)
 
@@ -244,19 +245,9 @@ export default function AgendaCollabScreen() {
   const [refusMotif, setRefusMotif]  = useState('')
   const [actionSaving, setActionSaving] = useState(false)
 
-  // ── Load company ──────────────────────────────────────────────────
-  useEffect(() => {
-    ;(async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
-      const { data } = await supabase
-        .from('companies').select('*').eq('owner_id', session.user.id).single()
-      if (data) setCompany(data)
-    })()
-  }, [])
-
-  useEffect(() => { if (company) loadAll() }, [company])
-  useEffect(() => { if (company) loadStatuts() }, [company, weekDates])
+  // ── Load ──────────────────────────────────────────────────────────
+  useEffect(() => { if (company) loadAll() }, [company?.id])
+  useEffect(() => { if (company) loadStatuts() }, [company?.id, weekDates])
 
   async function loadAll() {
     setLoading(true)

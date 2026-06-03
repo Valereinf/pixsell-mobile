@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../lib/supabase'
 import type { Company } from '../../lib/types'
+import { useOwnerContext } from '../../lib/ownerContext'
 
 const { width } = Dimensions.get('window')
 
@@ -54,6 +55,7 @@ function inits(prenom: string | null, nom: string | null) {
 export default function DashboardScreen() {
   const router = useRouter()
   const [company, setCompany] = useState<Company | null>(null)
+  const { setCompany: setContextCompany } = useOwnerContext()
   const [ownerName, setOwnerName] = useState('')
   const [resCount, setResCount] = useState(0)
   const [revenue, setRevenue] = useState(0)
@@ -78,6 +80,7 @@ export default function DashboardScreen() {
         .single()
       if (data) {
         setCompany(data as Company)
+        setContextCompany(data as Company)
         const meta = user.user_metadata ?? {}
         const name = (meta.full_name as string | undefined)
           || (meta.name as string | undefined)
