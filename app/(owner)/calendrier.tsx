@@ -137,6 +137,7 @@ export default function CalendrierScreen() {
   // Detail modal
   const [detailResa, setDetailResa] = useState<Resa | null>(null)
   const [updating, setUpdating] = useState(false)
+  const [editingResaId, setEditingResaId] = useState<string | null>(null)
 
   const scrollRef = useRef<ScrollView>(null)
 
@@ -237,10 +238,52 @@ export default function CalendrierScreen() {
     setCreateModal(true)
   }
 
+  const openEdit = (r: Resa) => {
+    setCreateEmpId(r.employee_id ?? '')
+    setCreateDate(r.date_rdv)
+    setCreateTime(r.heure_rdv?.slice(0, 5) ?? '09:00')
+    const svc = services.find(s => s.nom === r.service)
+    setCreateSvcId(svc?.id ?? services[0]?.id ?? '')
+    setSelectedClient(r.client_id ? {
+      id: r.client_id,
+      prenom: r.client_prenom ?? '',
+      nom: r.client_nom ?? '',
+      email: r.client_email ?? '',
+      telephone: r.client_telephone ?? '',
+    } : null)
+    setNewClientMode(false)
+    setCreateError('')
+    setEditingResaId(r.id)
+    setDetailResa(null)
+    setCreateModal(true)
+  }
+
   const handleCreate = async () => {
     if (!company || !createEmpId || !createSvcId || !createTime) { setCreateError('Employé, service et heure sont requis'); return }
     setCreating(true); setCreateError('')
     try {
+      if (editingResaId) {
+        const svc = services.find(s => s.id === createSvcId)
+        const { error } = await supabase.from('reservations').update({
+          employee_id: createEmpId,
+          service: svc?.nom ?? null,
+          prix: svc?.prix ?? 0,
+          duree_rdv: svc?.duree_minutes ?? 30,
+          date_rdv: createDate,
+          heure_rdv: createTime,
+          client_id: selectedClient?.id ?? null,
+          client_prenom: selectedClient?.prenom ?? newPrenom ?? null,
+          client_nom: selectedClient?.nom ?? newNom ?? null,
+          client_telephone: selectedClient?.telephone ?? newTel ?? null,
+          client_email: selectedClient?.email ?? newEmail ?? null,
+        }).eq('id', editingResaId)
+        if (error) { setCreateError(error.message); setCreating(false); return }
+        setEditingResaId(null)
+        setCreateModal(false)
+        loadResas()
+        return
+      }
+
       let clientId: string | null = null
       let clientPrenom: string | null = null
       let clientNom: string | null = null
@@ -393,7 +436,16 @@ export default function CalendrierScreen() {
           </TouchableOpacity>
         </View>
         <View style={{ flexDirection: 'row', gap: 6 }}>
-          <TouchableOpacity onPress={() => setSelectedDate(todayISO())} style={s.chipBtn}>
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedDate(todayISO())
+              setTimeout(() => {
+                const slot = Math.max(0, Math.floor((nowMins - START_H * 60) / 15) - 2)
+                scrollRef.current?.scrollTo({ y: slot * SLOT_H, animated: true })
+              }, 300)
+            }}
+            style={s.chipBtn}
+          >
             <Text style={{ fontSize: 12, fontWeight: '600', color: '#7c3aed' }}>Aujourd'hui</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setViewMode(v => v === 'day' ? 'week' : 'day')} style={s.chipBtn}>
@@ -520,12 +572,12 @@ export default function CalendrierScreen() {
       </TouchableOpacity>
 
       {/* ── Create RDV Modal ── */}
-      <Modal visible={createModal} animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'overFullScreen'} onRequestClose={() => setCreateModal(false)}>
+      <Modal visible={createModal} animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'overFullScreen'} onRequestClose={() => { setCreateModal(false); setEditingResaId(null) }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top', 'bottom']}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Nouveau rendez-vous</Text>
-              <TouchableOpacity onPress={() => setCreateModal(false)}><Ionicons name="close" size={22} color="#6b7280" /></TouchableOpacity>
+              <Text style={s.modalTitle}>{editingResaId ? 'Modifier le RDV' : 'Nouveau rendez-vous'}</Text>
+              <TouchableOpacity onPress={() => { setCreateModal(false); setEditingResaId(null) }}><Ionicons name="close" size={22} color="#6b7280" /></TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={{ padding: 16, gap: 14 }}>
               {/* Date + Time */}
@@ -614,7 +666,7 @@ export default function CalendrierScreen() {
               {createError ? <Text style={{ color: '#dc2626', fontSize: 13 }}>{createError}</Text> : null}
 
               <TouchableOpacity onPress={handleCreate} disabled={creating} style={{ backgroundColor: '#7c3aed', borderRadius: 12, padding: 14, alignItems: 'center', opacity: creating ? 0.6 : 1, marginTop: 4 }}>
-                {creating ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Créer le rendez-vous</Text>}
+                {creating ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>{editingResaId ? 'Enregistrer' : 'Créer le rendez-vous'}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </SafeAreaView>
@@ -642,7 +694,14 @@ export default function CalendrierScreen() {
                 </View>
               </View>
 
-              <View style={{ gap: 8, marginTop: 8 }}>
+              <TouchableOpacity
+                onPress={() => openEdit(detailResa)}
+                style={{ backgroundColor: 'rgba(124,58,237,0.1)', borderRadius: 12, padding: 14, alignItems: 'center', marginBottom: 8, marginTop: 8 }}
+              >
+                <Text style={{ color: '#7c3aed', fontWeight: '700', fontSize: 15 }}>✏️ Modifier</Text>
+              </TouchableOpacity>
+
+              <View style={{ gap: 8 }}>
                 {detailResa.statut === 'pending' && (
                   <TouchableOpacity onPress={() => handleUpdateStatut(detailResa.id, 'confirmed')} disabled={updating} style={[s.actionBtn, { backgroundColor: 'rgba(16,185,129,0.1)', borderColor: 'rgba(16,185,129,0.3)' }]}>
                     <Text style={{ color: '#059669', fontWeight: '600' }}>Confirmer</Text>
