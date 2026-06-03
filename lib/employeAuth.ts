@@ -1,25 +1,38 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { supabase } from './supabase'
 
 const NETLIFY_URL = 'https://app.pixsellmedia.ca'
 
 export async function loginEmploye({ slug, email, password }: { slug: string; email: string; password: string }) {
-  console.log('[loginEmploye] calling:', NETLIFY_URL, { slug, email })
-  try {
-    const res = await fetch(`${NETLIFY_URL}/.netlify/functions/employe-login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slug, email, password }),
-    })
-    const data = await res.json()
-    console.log('[loginEmploye] status:', res.status, 'data:', JSON.stringify(data))
-    if (!res.ok) throw new Error(data.error ?? data.message ?? `Erreur ${res.status}`)
-    if (!data.token) throw new Error('Token manquant dans la réponse')
-    await AsyncStorage.setItem(`employe_token_${data.company_id}`, data.token)
-    return data
-  } catch (e) {
-    console.log('[loginEmploye] ERROR:', e instanceof Error ? e.message : String(e))
-    throw e
-  }
+  const cleanEmail = email.trim().toLowerCase()
+  console.log('[loginEmploye] supabase direct:', { slug, email: cleanEmail })
+
+  // 1. Trouver la company par slug
+  const { data: company, error: compErr } = await supabase
+    .from('companies').select('id').eq('slug', slug).single()
+  if (compErr || !company) throw new Error('Salon introuvable')
+
+  // 2. Vérifier que l'employé existe et est actif
+  const { data: emp, error: empErr } = await supabase
+    .from('employes')
+    .select('id, nom, prenom, titre, photo_url, email, telephone, adresse, ville, code_postal, specialites, type_contrat, company_id')
+    .eq('email', cleanEmail)
+    .eq('company_id', company.id)
+    .eq('actif', true)
+    .single()
+  if (empErr || !emp) throw new Error('Identifiants invalides')
+
+  // 3. Authentifier via Supabase Auth (même méthode que login.tsx)
+  const { data: authData, error: signInErr } = await supabase.auth.signInWithPassword({
+    email: cleanEmail,
+    password,
+  })
+  if (signInErr || !authData.session) throw new Error(signInErr?.message ?? 'Identifiants invalides')
+
+  const token = authData.session.access_token
+  await AsyncStorage.setItem(`employe_token_${company.id}`, token)
+
+  return { token, company_id: company.id, employe: emp }
 }
 
 export async function getStoredToken(companyId: string): Promise<string | null> {
@@ -28,6 +41,7 @@ export async function getStoredToken(companyId: string): Promise<string | null> 
 
 export async function logoutEmploye(companyId: string) {
   await AsyncStorage.removeItem(`employe_token_${companyId}`)
+  await supabase.auth.signOut()
 }
 
 async function authFetch(path: string, token: string, options: RequestInit = {}) {

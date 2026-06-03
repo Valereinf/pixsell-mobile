@@ -255,7 +255,6 @@ export default function EmployePortal() {
   // ── Auth ────────────────────────────────────────────────────────────────────
 
   async function handleLogin() {
-    Alert.alert('Debug', `slug=${slug} email=${loginEmail}`)
     setLoggingIn(true)
     setLoginErr('')
     try {
@@ -266,7 +265,6 @@ export default function EmployePortal() {
         .replace(/^\/+/, '')
         .replace(/\/+$/, '')
         .split('/')[0]
-      Alert.alert('Debug2', `cleanSlug=${cleanSlug}`)
       const data = await loginEmploye({ slug: cleanSlug, email: loginEmail, password: loginPwd })
       const tok = data.token as string
       setToken(tok)
