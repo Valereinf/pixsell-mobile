@@ -20,7 +20,7 @@ export default function Login() {
 
   async function handleLogin() {
     if (!email || !password) { setError('Email et mot de passe requis'); return }
-    if (tab === 'employee' && !slug) { setError('Slug du salon requis'); return }
+    if (tab === 'employee' && !slug) { setError("Identifiant de l'établissement requis"); return }
     setLoading(true)
     setError('')
 
@@ -92,15 +92,16 @@ export default function Login() {
             {/* Slug field (employee only) */}
             {tab === 'employee' && (
               <View style={styles.field}>
-                <Text style={styles.label}>Slug du salon</Text>
+                <Text style={styles.label}>Identifiant de l'établissement</Text>
                 <TextInput
                   style={styles.input}
                   value={slug}
                   onChangeText={setSlug}
-                  placeholder="ex: monsalon"
+                  placeholder="ex: king-cuts"
                   placeholderTextColor="#9ca3af"
                   autoCapitalize="none"
                 />
+                <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: -8, marginBottom: 4 }}>Fourni par votre responsable</Text>
               </View>
             )}
 

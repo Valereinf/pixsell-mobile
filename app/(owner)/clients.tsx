@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../lib/supabase'
 
-const NETLIFY_URL = 'https://aesthetic-yeot-2d7094.netlify.app'
+const NETLIFY_URL = 'https://app.pixsellmedia.ca'
 
 // ── Types ────────────────────────────────────────────────────────
 type Segment = 'nouveau' | 'regulier' | 'frequent' | 'vip' | 'inactif'

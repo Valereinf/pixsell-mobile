@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
-const NETLIFY_URL = 'https://aesthetic-yeot-2d7094.netlify.app'
+const NETLIFY_URL = 'https://app.pixsellmedia.ca'
 
 export interface ClientRecord {
   id: string; prenom: string; nom: string; email: string

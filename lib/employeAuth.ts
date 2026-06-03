@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
-const NETLIFY_URL = 'https://aesthetic-yeot-2d7094.netlify.app'
+const NETLIFY_URL = 'https://app.pixsellmedia.ca'
 
 export async function loginEmploye({ slug, email, password }: { slug: string; email: string; password: string }) {
   const res = await fetch(`${NETLIFY_URL}/.netlify/functions/employe-login`, {

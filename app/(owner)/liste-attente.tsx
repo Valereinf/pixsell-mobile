@@ -9,7 +9,7 @@ import { supabase } from '../../lib/supabase'
 import type { Company } from '../../lib/types'
 import { useOwnerContext } from '../../lib/ownerContext'
 
-const NETLIFY_URL = 'https://aesthetic-yeot-2d7094.netlify.app'
+const NETLIFY_URL = 'https://app.pixsellmedia.ca'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
