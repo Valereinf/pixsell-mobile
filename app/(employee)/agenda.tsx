@@ -272,7 +272,9 @@ export default function EmployePortal() {
       await loadTabData(tok, 'accueil')
       setView('portal')
     } catch (e) {
-      setLoginErr(e instanceof Error ? e.message : 'Erreur de connexion')
+      const msg = e instanceof Error ? e.message : 'Erreur de connexion'
+      console.log('[handleLogin] error:', msg)
+      setLoginErr(msg)
     } finally {
       setLoggingIn(false)
     }

@@ -155,7 +155,7 @@ export default function CalendrierScreen() {
     if (!company) return
     Promise.all([
       supabase.from('employes').select('id, nom, photo_url, titre, couleur_agenda').eq('company_id', company.id).eq('actif', true).order('nom'),
-      supabase.from('services').select('id, nom, prix, duree_minutes').eq('company_id', company.id).eq('actif', true).order('nom'),
+      supabase.from('services_catalogue').select('id, nom, prix, duree_minutes').eq('company_id', company.id).eq('actif', true).order('ordre', { ascending: true }),
     ]).then(([{ data: emps }, { data: svcs }]) => {
       const empList = (emps ?? []) as Employe[]
       setEmployes(empList)
