@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Animated, View, StyleSheet, Dimensions } from 'react-native'
 import * as SplashScreen from 'expo-splash-screen'
-import * as Notifications from 'expo-notifications'
 import { Stack } from 'expo-router'
 import { supabase } from '../lib/supabase'
 import { setupNotificationHandler, registerPushToken } from '../lib/notifications'
@@ -29,12 +28,8 @@ export default function RootLayout() {
         registerPushToken({ ownerId: session.user.id })
       }
     })
-    const notifSub = Notifications.addNotificationResponseReceivedListener(() => {
-      // Navigate based on notification data if needed in the future
-    })
     return () => {
       subscription.unsubscribe()
-      notifSub.remove()
     }
   }, [])
 

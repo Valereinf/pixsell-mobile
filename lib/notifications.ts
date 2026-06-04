@@ -1,23 +1,25 @@
-import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
 import Constants from 'expo-constants'
 import { Platform } from 'react-native'
 import { supabase } from './supabase'
 
+// Must be evaluated before any expo-notifications import
 const isExpoGo = Constants.appOwnership === 'expo'
 
 export function setupNotificationHandler() {
-  if (isExpoGo) { console.log('[notifications] Expo Go détecté — notifications désactivées'); return }
-  try {
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-      }),
-    })
-  } catch { /* ignore */ }
+  if (isExpoGo) { console.log('[notifications] Expo Go — setup ignoré'); return }
+  import('expo-notifications').then(Notifications => {
+    try {
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+        }),
+      })
+    } catch { /* ignore */ }
+  }).catch(() => {})
 }
 
 export async function registerPushToken({
@@ -31,6 +33,8 @@ export async function registerPushToken({
   if (!Device.isDevice) return
 
   try {
+    const Notifications = await import('expo-notifications')
+
     const { status: existing } = await Notifications.getPermissionsAsync()
     let finalStatus = existing
     if (existing !== 'granted') {
@@ -69,10 +73,16 @@ export async function registerPushToken({
 
 export async function setBadgeCount(count: number) {
   if (isExpoGo) return
-  try { await Notifications.setBadgeCountAsync(count) } catch { /* ignore */ }
+  try {
+    const Notifications = await import('expo-notifications')
+    await Notifications.setBadgeCountAsync(count)
+  } catch { /* ignore */ }
 }
 
 export async function clearBadge() {
   if (isExpoGo) return
-  try { await Notifications.setBadgeCountAsync(0) } catch { /* ignore */ }
+  try {
+    const Notifications = await import('expo-notifications')
+    await Notifications.setBadgeCountAsync(0)
+  } catch { /* ignore */ }
 }
