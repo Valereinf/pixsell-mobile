@@ -11,7 +11,7 @@ const EXTRA_ITEMS = [
   { route: '/(owner)/employes',      icon: 'people-outline',        label: 'Employés' },
   { route: '/(owner)/agenda-collab', icon: 'calendar-outline',      label: 'Agenda collab.' },
   { route: '/(owner)/services',      icon: 'cut-outline',           label: 'Services' },
-  { route: '/(owner)/marketing',     icon: 'megaphone-outline',     label: 'Marketing' },
+  { route: '/(owner)/comptabilite',  icon: 'receipt-outline',       label: 'Comptabilité' },
   { route: '/(owner)/liste-attente', icon: 'time-outline',          label: "Liste d'attente" },
   { route: '/(owner)/statistiques',  icon: 'bar-chart-outline',     label: 'Statistiques' },
   { route: '/(owner)/avis',          icon: 'star-outline',          label: 'Avis clients' },
@@ -66,7 +66,7 @@ export default function OwnerLayout() {
           <Tabs.Screen name="reservations" options={{ title: 'Réservations', tabBarIcon: ({ color }) => <Ionicons name="calendar-outline"       size={22} color={color} /> }} />
           <Tabs.Screen name="dashboard"    options={{ title: 'Dashboard',    tabBarIcon: ({ color }) => <Ionicons name="grid-outline"            size={22} color={color} /> }} />
           <Tabs.Screen name="clients"      options={{ title: 'Clients',      tabBarIcon: ({ color }) => <Ionicons name="people-circle-outline"   size={22} color={color} /> }} />
-          <Tabs.Screen name="comptabilite" options={{ title: 'Compta',       tabBarIcon: ({ color }) => <Ionicons name="receipt-outline"         size={22} color={color} /> }} />
+          <Tabs.Screen name="marketing"    options={{ title: 'Marketing',    tabBarIcon: ({ color }) => <Ionicons name="megaphone-outline"       size={22} color={color} /> }} />
 
           {/* "Plus" — 6th tab, intercepts press to open modal instead of navigating */}
           <Tabs.Screen
@@ -89,7 +89,7 @@ export default function OwnerLayout() {
           <Tabs.Screen name="employes"      options={{ href: null }} />
           <Tabs.Screen name="agenda-collab" options={{ href: null }} />
           <Tabs.Screen name="services"      options={{ href: null }} />
-          <Tabs.Screen name="marketing"     options={{ href: null }} />
+          <Tabs.Screen name="comptabilite"  options={{ href: null }} />
           <Tabs.Screen name="liste-attente" options={{ href: null }} />
           <Tabs.Screen name="statistiques"  options={{ href: null }} />
           <Tabs.Screen name="avis"          options={{ href: null }} />
