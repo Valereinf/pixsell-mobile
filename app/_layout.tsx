@@ -25,7 +25,10 @@ export default function RootLayout() {
   useEffect(() => {
     setupNotificationHandler()
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
+      console.log('[_layout] auth event:', event, 'uid:', session?.user?.id ?? 'null')
+      // INITIAL_SESSION = session restaurée depuis AsyncStorage (app restart)
+      // SIGNED_IN = nouvelle connexion
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
         registerPushToken({ ownerId: session.user.id })
       }
     })
