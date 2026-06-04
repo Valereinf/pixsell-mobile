@@ -18,8 +18,8 @@ export function setupNotificationHandler() {
           shouldSetBadge: true,
         }),
       })
-    } catch { /* ignore */ }
-  }).catch(() => {})
+    } catch (e) { console.warn('[notifications] setNotificationHandler error:', e) }
+  }).catch(e => console.warn('[notifications] import error:', e))
 }
 
 export async function registerPushToken({
@@ -29,26 +29,41 @@ export async function registerPushToken({
   ownerId?: string
   employeId?: string
 }) {
-  if (isExpoGo) { console.log('[notifications] Expo Go — registerPushToken ignoré'); return }
-  if (!Device.isDevice) return
+  console.log('[registerPushToken] start', { isExpoGo, isDevice: Device.isDevice, ownerId, employeId })
+
+  if (isExpoGo) { console.log('[registerPushToken] Expo Go — ignoré'); return }
+  if (!Device.isDevice) { console.log('[registerPushToken] pas un vrai device — ignoré'); return }
 
   try {
     const Notifications = await import('expo-notifications')
 
+    // ── Permissions ───────────────────────────────────────────────
     const { status: existing } = await Notifications.getPermissionsAsync()
+    console.log('[registerPushToken] permission existante:', existing)
+
     let finalStatus = existing
     if (existing !== 'granted') {
       const { status } = await Notifications.requestPermissionsAsync()
       finalStatus = status
+      console.log('[registerPushToken] permission demandée:', finalStatus)
     }
-    if (finalStatus !== 'granted') return
+    if (finalStatus !== 'granted') {
+      console.warn('[registerPushToken] permission refusée:', finalStatus)
+      return
+    }
 
+    // ── Project ID ────────────────────────────────────────────────
     const projectId = Constants.expoConfig?.extra?.eas?.projectId
-    if (!projectId) return
+    console.log('[registerPushToken] projectId:', projectId)
+    if (!projectId) { console.warn('[registerPushToken] projectId manquant dans app.json'); return }
 
-    const { data: pushToken } = await Notifications.getExpoPushTokenAsync({ projectId })
-    if (!pushToken) return
+    // ── Expo Push Token ───────────────────────────────────────────
+    const tokenResult = await Notifications.getExpoPushTokenAsync({ projectId })
+    const pushToken = tokenResult.data
+    console.log('[registerPushToken] pushToken:', pushToken)
+    if (!pushToken) { console.warn('[registerPushToken] pushToken vide'); return }
 
+    // ── Android channel ───────────────────────────────────────────
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'default',
@@ -58,7 +73,12 @@ export async function registerPushToken({
       })
     }
 
-    await supabase.from('push_tokens').upsert(
+    // ── Supabase session debug ────────────────────────────────────
+    const { data: { session } } = await supabase.auth.getSession()
+    console.log('[registerPushToken] session uid:', session?.user?.id ?? 'null (pas de session)')
+
+    // ── Upsert push_tokens ────────────────────────────────────────
+    const { error } = await supabase.from('push_tokens').upsert(
       {
         token: pushToken,
         owner_id: ownerId ?? null,
@@ -68,7 +88,15 @@ export async function registerPushToken({
       },
       { onConflict: 'token' }
     )
-  } catch { /* ignore */ }
+
+    if (error) {
+      console.error('[registerPushToken] erreur upsert Supabase:', error.code, error.message, error.details)
+    } else {
+      console.log('[registerPushToken] token sauvegardé avec succès ✓')
+    }
+  } catch (e) {
+    console.error('[registerPushToken] exception inattendue:', e instanceof Error ? e.message : String(e))
+  }
 }
 
 export async function setBadgeCount(count: number) {
