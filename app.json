@@ -15,7 +15,12 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.pixsell.mobile"
+      "package": "com.pixsell.mobile",
+      "permissions": [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
     },
     "androidStatusBar": {
       "barStyle": "dark-content",
@@ -28,7 +33,14 @@
     },
     "plugins": [
       "expo-router",
-      "expo-notifications"
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#6B46C1",
+          "sounds": []
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
