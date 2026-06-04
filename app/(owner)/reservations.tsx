@@ -223,13 +223,19 @@ function DetailModal({ row, companyId, onClose, onStatusChange, onUpdate }: Deta
     setEditNoteInterne(row.note_interne ?? '')
     if (!editDataLoaded) {
       Promise.all([
-        supabase.from('services').select('id, nom, prix, duree_minutes').eq('company_id', companyId).eq('actif', true).order('nom'),
+        supabase.from('services_catalogue').select('id, nom, prix, duree_minutes').eq('company_id', companyId).eq('actif', true).order('ordre', { ascending: true }),
         supabase.from('employes').select('id, nom').eq('company_id', companyId).eq('actif', true).order('nom'),
       ]).then(([{ data: s }, { data: e }]) => {
-        setEditServices((s ?? []) as ServiceRow[])
+        const svcs = (s ?? []) as ServiceRow[]
+        setEditServices(svcs)
         setEditEmployes((e ?? []) as EmployeRow[])
+        const found = svcs.find(sv => sv.nom === row.service)
+        if (found) { setEditSvcId(found.id); setEditPrix(String(found.prix)) }
         setEditDataLoaded(true)
       })
+    } else {
+      const found = editServices.find(sv => sv.nom === row.service)
+      if (found) { setEditSvcId(found.id); setEditPrix(String(found.prix)) }
     }
     setEditing(true)
   }
@@ -292,7 +298,7 @@ function DetailModal({ row, companyId, onClose, onStatusChange, onUpdate }: Deta
                   <TextInput style={s.input} value={editTime} onChangeText={setEditTime} placeholder="HH:MM" placeholderTextColor="#9ca3af" />
                 </View>
                 <View>
-                  <Text style={s.sectionLabel}>SERVICE (actuel : {row.service ?? '—'})</Text>
+                  <Text style={s.sectionLabel}>SERVICE</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
                     {editServices.map(svc => (
                       <TouchableOpacity
@@ -300,7 +306,7 @@ function DetailModal({ row, companyId, onClose, onStatusChange, onUpdate }: Deta
                         onPress={() => { setEditSvcId(svc.id); setEditPrix(String(svc.prix)) }}
                         style={[s.chip, editSvcId === svc.id && s.chipActive]}
                       >
-                        <Text style={[s.chipLabel, editSvcId === svc.id && s.chipLabelActive]}>{svc.nom}</Text>
+                        <Text style={[s.chipLabel, editSvcId === svc.id && s.chipLabelActive]}>{svc.nom} — {svc.prix} $</Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
