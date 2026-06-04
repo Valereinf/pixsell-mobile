@@ -37,7 +37,7 @@ export default function OwnerLayout() {
             headerShown: false,
             tabBarStyle: {
               position: 'absolute',
-              backgroundColor: 'rgba(255,255,255,0.65)',
+              backgroundColor: 'rgba(255,255,255,0.82)',
               borderTopWidth: 0,
               elevation: 0,
               height: 64 + insets.bottom,
