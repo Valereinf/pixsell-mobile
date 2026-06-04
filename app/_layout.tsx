@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Animated, View, StyleSheet, Dimensions } from 'react-native'
 import * as SplashScreen from 'expo-splash-screen'
+import * as Notifications from 'expo-notifications'
 import { Stack } from 'expo-router'
+import { supabase } from '../lib/supabase'
+import { registerPushToken } from '../lib/notifications'
 
 SplashScreen.preventAutoHideAsync()
 
@@ -16,6 +19,22 @@ export default function RootLayout() {
 
   useEffect(() => {
     setTimeout(() => setAppReady(true), 300)
+  }, [])
+
+  // Register push token when owner signs in, handle foreground notifications
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        registerPushToken({ ownerId: session.user.id })
+      }
+    })
+    const notifSub = Notifications.addNotificationResponseReceivedListener(() => {
+      // Navigate based on notification data if needed in the future
+    })
+    return () => {
+      subscription.unsubscribe()
+      notifSub.remove()
+    }
   }, [])
 
   useEffect(() => {

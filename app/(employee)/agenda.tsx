@@ -8,6 +8,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
+import { registerPushToken } from '../../lib/notifications'
 import {
   loginEmploye, logoutEmploye, getMe, getDemandes, getStats,
   getGratifications, getRdv, getNotifications,
@@ -250,6 +251,7 @@ export default function EmployePortal() {
             applyMeData(data)
             await loadTabData(tok, 'accueil')
             setView('portal')
+            registerPushToken({ employeId: ((data.employe ?? data) as { id: string }).id })
             return
           } catch {
             await AsyncStorage.removeItem(tokenKey)
@@ -296,6 +298,7 @@ export default function EmployePortal() {
       applyMeData(data)
       await loadTabData(tok, 'accueil')
       setView('portal')
+      registerPushToken({ employeId: (data.employe as { id: string })?.id })
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Erreur de connexion'
       console.log('[handleLogin] error:', msg)
