@@ -1,7 +1,8 @@
 import * as Device from 'expo-device'
 import Constants from 'expo-constants'
 import { Platform } from 'react-native'
-import { supabase } from './supabase'
+
+const NETLIFY_URL = 'https://app.pixsellmedia.ca'
 
 // Must be evaluated before any expo-notifications import
 const isExpoGo = Constants.appOwnership === 'expo'
@@ -73,26 +74,22 @@ export async function registerPushToken({
       })
     }
 
-    // ── Supabase session debug ────────────────────────────────────
-    const { data: { session } } = await supabase.auth.getSession()
-    console.log('[registerPushToken] session uid:', session?.user?.id ?? 'null (pas de session)')
-
-    // ── Upsert push_tokens ────────────────────────────────────────
-    const { error } = await supabase.from('push_tokens').upsert(
-      {
+    // ── Enregistrer via Netlify function (service role key — bypass RLS) ──
+    const res = await fetch(`${NETLIFY_URL}/.netlify/functions/register-push-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         token: pushToken,
         owner_id: ownerId ?? null,
         employe_id: employeId ?? null,
         device_type: Platform.OS,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'token' }
-    )
-
-    if (error) {
-      console.error('[registerPushToken] erreur upsert Supabase:', error.code, error.message, error.details)
+      }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      console.error('[registerPushToken] erreur Netlify:', res.status, data)
     } else {
-      console.log('[registerPushToken] token sauvegardé avec succès ✓')
+      console.log('[registerPushToken] token sauvegardé via Netlify ✓')
     }
   } catch (e) {
     console.error('[registerPushToken] exception inattendue:', e instanceof Error ? e.message : String(e))
