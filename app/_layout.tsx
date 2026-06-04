@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Animated, View, StyleSheet, Dimensions } from 'react-native'
 import * as SplashScreen from 'expo-splash-screen'
 import { Stack } from 'expo-router'
+import { StatusBar } from 'expo-status-bar'
 import { supabase } from '../lib/supabase'
 import { setupNotificationHandler, registerPushToken } from '../lib/notifications'
 
@@ -78,7 +79,12 @@ export default function RootLayout() {
     )
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />
+  return (
+    <>
+      <StatusBar style="dark" />
+      <Stack screenOptions={{ headerShown: false }} />
+    </>
+  )
 }
 
 const styles = StyleSheet.create({

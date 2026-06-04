@@ -17,6 +17,11 @@
       },
       "package": "com.pixsell.mobile"
     },
+    "androidStatusBar": {
+      "barStyle": "dark-content",
+      "backgroundColor": "#ffffff",
+      "translucent": false
+    },
     "ios": {
       "bundleIdentifier": "com.pixsell.mobile",
       "supportsTablet": true
