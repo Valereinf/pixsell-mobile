@@ -129,7 +129,18 @@ function SectionCard({ title, children }: { title?: string; children: React.Reac
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function MarketingScreen() {
-  const { company } = useOwnerContext()
+  const { company: ctxCompany } = useOwnerContext()
+  const [company, setCompany] = useState(ctxCompany)
+
+  useEffect(() => {
+    if (ctxCompany) { setCompany(ctxCompany); return }
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase.from('companies').select('*').eq('owner_email', user.email).single()
+        .then(({ data }) => { if (data) setCompany(data as Company) })
+    })
+  }, [ctxCompany])
+
   const [tab, setTab]         = useState<TabId>('overview')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving]   = useState(false)
