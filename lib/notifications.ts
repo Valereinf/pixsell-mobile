@@ -4,14 +4,21 @@ import Constants from 'expo-constants'
 import { Platform } from 'react-native'
 import { supabase } from './supabase'
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-})
+// Called once from app/_layout.tsx — NOT at module level to avoid import-time errors
+export function setupNotificationHandler() {
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    })
+  } catch {
+    // Silently fail in environments where expo-notifications isn't fully available
+  }
+}
 
 export async function registerPushToken({
   ownerId,
@@ -22,18 +29,18 @@ export async function registerPushToken({
 }) {
   if (!Device.isDevice) return
 
-  const { status: existing } = await Notifications.getPermissionsAsync()
-  let finalStatus = existing
-  if (existing !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync()
-    finalStatus = status
-  }
-  if (finalStatus !== 'granted') return
-
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId
-  if (!projectId) return
-
   try {
+    const { status: existing } = await Notifications.getPermissionsAsync()
+    let finalStatus = existing
+    if (existing !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync()
+      finalStatus = status
+    }
+    if (finalStatus !== 'granted') return
+
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId
+    if (!projectId) return
+
     const { data: pushToken } = await Notifications.getExpoPushTokenAsync({ projectId })
     if (!pushToken) return
 
@@ -62,9 +69,9 @@ export async function registerPushToken({
 }
 
 export async function setBadgeCount(count: number) {
-  await Notifications.setBadgeCountAsync(count)
+  try { await Notifications.setBadgeCountAsync(count) } catch { /* ignore */ }
 }
 
 export async function clearBadge() {
-  await Notifications.setBadgeCountAsync(0)
+  try { await Notifications.setBadgeCountAsync(0) } catch { /* ignore */ }
 }

@@ -4,7 +4,7 @@ import * as SplashScreen from 'expo-splash-screen'
 import * as Notifications from 'expo-notifications'
 import { Stack } from 'expo-router'
 import { supabase } from '../lib/supabase'
-import { registerPushToken } from '../lib/notifications'
+import { setupNotificationHandler, registerPushToken } from '../lib/notifications'
 
 SplashScreen.preventAutoHideAsync()
 
@@ -21,8 +21,9 @@ export default function RootLayout() {
     setTimeout(() => setAppReady(true), 300)
   }, [])
 
-  // Register push token when owner signs in, handle foreground notifications
+  // Setup notification handler + auth listener
   useEffect(() => {
+    setupNotificationHandler()
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
         registerPushToken({ ownerId: session.user.id })
