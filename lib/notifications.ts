@@ -4,8 +4,10 @@ import Constants from 'expo-constants'
 import { Platform } from 'react-native'
 import { supabase } from './supabase'
 
-// Called once from app/_layout.tsx — NOT at module level to avoid import-time errors
+const isExpoGo = Constants.appOwnership === 'expo'
+
 export function setupNotificationHandler() {
+  if (isExpoGo) { console.log('[notifications] Expo Go détecté — notifications désactivées'); return }
   try {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
@@ -15,9 +17,7 @@ export function setupNotificationHandler() {
         shouldSetBadge: true,
       }),
     })
-  } catch {
-    // Silently fail in environments where expo-notifications isn't fully available
-  }
+  } catch { /* ignore */ }
 }
 
 export async function registerPushToken({
@@ -27,6 +27,7 @@ export async function registerPushToken({
   ownerId?: string
   employeId?: string
 }) {
+  if (isExpoGo) { console.log('[notifications] Expo Go — registerPushToken ignoré'); return }
   if (!Device.isDevice) return
 
   try {
@@ -63,15 +64,15 @@ export async function registerPushToken({
       },
       { onConflict: 'token' }
     )
-  } catch {
-    // Silently fail — push token registration is non-critical
-  }
+  } catch { /* ignore */ }
 }
 
 export async function setBadgeCount(count: number) {
+  if (isExpoGo) return
   try { await Notifications.setBadgeCountAsync(count) } catch { /* ignore */ }
 }
 
 export async function clearBadge() {
+  if (isExpoGo) return
   try { await Notifications.setBadgeCountAsync(0) } catch { /* ignore */ }
 }
