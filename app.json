@@ -6,12 +6,10 @@
     "scheme": "pixsell",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#000099"
-    },
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -23,7 +21,18 @@
       "bundleIdentifier": "com.pixsell.mobile",
       "supportsTablet": true
     },
-    "plugins": ["expo-router", "expo-notifications"],
-    "experiments": { "typedRoutes": true }
+    "plugins": [
+      "expo-router",
+      "expo-notifications"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "75fe8240-fe07-4514-954e-7cdbc77af6ff"
+      }
+    }
   }
 }
