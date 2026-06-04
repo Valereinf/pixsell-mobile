@@ -776,14 +776,14 @@ export default function AgendaCollabScreen() {
               data={employes}
               keyExtractor={e => e.id}
               renderItem={renderHoraireCard}
-              contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 16 }}
+              contentContainerStyle={{ padding: 16, paddingBottom: 100, gap: 16 }}
               ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#9ca3af', marginTop: 40 }}>Aucun employé actif</Text>}
             />
           )}
 
           {/* ── DEMANDES RH ── */}
           {tab === 'demandes' && (
-            <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60, gap: 16 }}>
+            <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100, gap: 16 }}>
 
               {/* Soldes vacances */}
               <View style={s.card}>

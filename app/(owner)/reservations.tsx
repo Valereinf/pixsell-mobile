@@ -880,7 +880,7 @@ export default function ReservationsScreen() {
   const [company, setCompany]       = useState<Company | null>(null)
   const [rows, setRows]             = useState<ReservationRow[]>([])
   const [loading, setLoading]       = useState(true)
-  const [activeFilter, setActiveFilter] = useState<QuickFilter>('tous')
+  const [activeFilter, setActiveFilter] = useState<QuickFilter>('aujourd_hui')
   const [search, setSearch]         = useState('')
   const [saving, setSaving]         = useState(false)
 

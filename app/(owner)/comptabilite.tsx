@@ -661,7 +661,7 @@ export default function ComptabiliteScreen() {
       {loading ? (
         <ActivityIndicator style={{ marginTop: 40 }} size="large" color="#7c3aed" />
       ) : (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
 
           {/* ── DASHBOARD ── */}
           {tab === 'dashboard' && (

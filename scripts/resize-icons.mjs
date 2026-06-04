@@ -2,7 +2,7 @@ import sharp from 'sharp'
 import { renameSync } from 'fs'
 
 const CANVAS = 1024
-const LOGO_SIZE = Math.round(CANVAS * 0.60) // 614px
+const LOGO_SIZE = 410 // 40% de 1024
 const PAD = Math.floor((CANVAS - LOGO_SIZE) / 2)
 
 async function processIcon(src) {
