@@ -2,13 +2,12 @@ import sharp from 'sharp'
 import { renameSync, existsSync, copyFileSync } from 'fs'
 
 const CANVAS = 1024
-const LOGO_SIZE = 768 // 75% de 1024
-const PAD = Math.floor((CANVAS - LOGO_SIZE) / 2)
+const LOGO_SIZE = 563               // 55% de 1024
+const PAD = Math.floor((CANVAS - LOGO_SIZE) / 2)  // 230px de chaque côté
 
 // Source originale — jamais écrasée par ce script
 const SOURCE = 'assets/icon-original.png'
 
-// Crée la sauvegarde si absente (première exécution)
 if (!existsSync(SOURCE)) {
   copyFileSync('assets/icon.png', SOURCE)
   console.log(`${SOURCE} créé comme sauvegarde source ✓`)
@@ -31,7 +30,7 @@ async function processIcon(dest) {
 
   renameSync(dest + '.tmp', dest)
   const meta = await sharp(dest).metadata()
-  console.log(`${dest} → ${meta.width}x${meta.height} ✓ (logo ${LOGO_SIZE}px, marge ${PAD}px)`)
+  console.log(`${dest} → ${meta.width}x${meta.height} ✓  (logo ${LOGO_SIZE}px, marge ${PAD}px de chaque côté)`)
 }
 
 await Promise.all([
