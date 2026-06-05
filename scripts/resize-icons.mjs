@@ -5,13 +5,13 @@ const CANVAS = 1024
 const LOGO_SIZE = 768 // 75% de 1024
 const PAD = Math.floor((CANVAS - LOGO_SIZE) / 2)
 
-// Toujours partir de la source originale — jamais redimensionner un fichier déjà traité
-const SOURCE = 'assets/icon-source.png'
+// Source originale — jamais écrasée par ce script
+const SOURCE = 'assets/icon-original.png'
 
+// Crée la sauvegarde si absente (première exécution)
 if (!existsSync(SOURCE)) {
-  console.error(`Source originale introuvable : ${SOURCE}`)
-  console.error('Créer assets/icon-source.png à partir du logo original avant de lancer ce script.')
-  process.exit(1)
+  copyFileSync('assets/icon.png', SOURCE)
+  console.log(`${SOURCE} créé comme sauvegarde source ✓`)
 }
 
 async function processIcon(dest) {

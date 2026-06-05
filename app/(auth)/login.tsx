@@ -59,8 +59,8 @@ export default function Login() {
   }
 
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1 }}>
     <LinearGradient colors={['#ddd6fe', '#f5d0fe', '#fce7f3']} style={{ flex: 1 }}>
+      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
@@ -170,13 +170,13 @@ export default function Login() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      </SafeAreaView>
     </LinearGradient>
-    </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  scroll:         { flexGrow: 1, paddingHorizontal: 24, paddingTop: 80, paddingBottom: 48 },
+  scroll:         { flexGrow: 1, paddingHorizontal: 24, paddingTop: 32, paddingBottom: 48 },
   logoRow:        { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 32 },
   logoBox:        { width: 44, height: 44, borderRadius: 12, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center' },
   logoLetter:     { color: '#fff', fontSize: 22, fontWeight: '900' },
