@@ -206,11 +206,7 @@ export default function EmployePortal() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [gratifs, setGratifs] = useState<Gratif[]>([])
   const [notifRdvList, setNotifRdvList] = useState<ResaToday[]>([])
-
-  // unreadNotif = RDV à venir en attente de confirmation
-  useEffect(() => {
-    setUnreadNotif(rdvUpcoming.filter(r => r.statut === 'en_attente').length)
-  }, [rdvUpcoming])
+  const [lastSeenAt, setLastSeenAt] = useState<string | null>(null)
 
   // Fetch notifications_rdv depuis Supabase quand l'onglet est actif
   useEffect(() => {
@@ -218,11 +214,34 @@ export default function EmployePortal() {
     supabase
       .from('reservations')
       .select('id, date_rdv, heure_rdv, service, client_prenom, client_nom, statut, prix, duree_rdv')
-      .eq('employe_id', employe.id)
+      .eq('employee_id', employe.id)   // colonne correcte : employee_id (deux e)
       .order('created_at', { ascending: false })
       .limit(10)
-      .then(({ data }) => setNotifRdvList((data ?? []) as ResaToday[]))
+      .then(({ data }) => {
+        setNotifRdvList((data ?? []) as ResaToday[])
+        setLastSeenAt(new Date().toISOString())
+        setUnreadNotif(0)  // reset badge quand l'employé ouvre le panneau
+      })
   }, [tab, employe?.id])
+
+  // Realtime — badge cloche incrémenté à chaque nouvelle réservation
+  useEffect(() => {
+    if (!employe?.id) return
+    const channel = supabase
+      .channel('employe-notif-' + employe.id)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'reservations',
+        filter: `employee_id=eq.${employe.id}`,
+      }, () => {
+        setUnreadNotif(prev => prev + 1)
+      })
+      .subscribe((status) => {
+        console.log('[Realtime] employe notif status:', status)
+      })
+    return () => { supabase.removeChannel(channel) }
+  }, [employe?.id])
 
   // Profil edit
   const [editPrenom, setEditPrenom] = useState('')
@@ -288,7 +307,7 @@ export default function EmployePortal() {
     setResasToday((data.reservations_today as ResaToday[]) ?? [])
     setStatutToday((data.statut_today as { statut: string } | null)?.statut ?? null)
     setUnreadGratif((data.unread_gratif_count as number) ?? 0)
-    setUnreadNotif((data.unread_notif_count as number) ?? 0)
+    // unreadNotif géré par realtime + reset local — pas depuis le serveur
     setSoldeVacances(data.solde_vacances as { jours_vacances_annuels: number; jours_restants: number } | null)
     setEditPrenom(emp.prenom ?? '')
     setEditNom(emp.nom ?? '')
