@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, Dimensions,
+  StyleSheet, Dimensions, AppState, type AppStateStatus,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -167,31 +167,58 @@ export default function DashboardScreen() {
     load()
   }, [company?.id])
 
-  // ── Realtime subscription — activités récentes ───────────────
+  // ── Realtime subscription — activités récentes + reconnexion foreground ──
   useEffect(() => {
     if (!company?.id) return
-    const channel = supabase
-      .channel('dashboard-recent-' + company.id)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'reservations',
-        filter: `company_id=eq.${company.id}`,
-      }, () => {
+
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
+    const connectChannel = () => {
+      if (channel) supabase.removeChannel(channel)
+      channel = supabase
+        .channel('dashboard-recent-' + company.id + '-' + Date.now())
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'reservations',
+          filter: `company_id=eq.${company.id}`,
+        }, () => { fetchRecent(company.id).then(setRecent) })
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'reservations',
+          filter: `company_id=eq.${company.id}`,
+        }, () => { fetchRecent(company.id).then(setRecent) })
+        .subscribe((status) => {
+          console.log('[Realtime] dashboard status:', status)
+        })
+    }
+
+    connectChannel()
+
+    const handleForeground = (nextState: AppStateStatus) => {
+      if (nextState === 'active') {
+        console.log('[Realtime] dashboard foreground → reconnect')
+        connectChannel()
+      }
+    }
+    const sub = AppState.addEventListener('change', handleForeground)
+
+    return () => {
+      sub.remove()
+      if (channel) supabase.removeChannel(channel)
+    }
+  }, [company?.id])
+
+  // ── AppState — re-fetch activités récentes au retour foreground ──
+  useEffect(() => {
+    const handleAppStateChange = async (nextState: AppStateStatus) => {
+      if (nextState === 'active' && company?.id) {
         fetchRecent(company.id).then(setRecent)
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'reservations',
-        filter: `company_id=eq.${company.id}`,
-      }, () => {
-        fetchRecent(company.id).then(setRecent)
-      })
-      .subscribe((status) => {
-        console.log('[Realtime] dashboard status:', status)
-      })
-    return () => { supabase.removeChannel(channel) }
+      }
+    }
+    const sub = AppState.addEventListener('change', handleAppStateChange)
+    return () => sub.remove()
   }, [company?.id])
 
   // ── Calendar dates ───────────────────────────────────────────

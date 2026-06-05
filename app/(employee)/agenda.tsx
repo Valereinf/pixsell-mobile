@@ -221,7 +221,10 @@ export default function EmployePortal() {
       .then(({ data }) => {
         setNotifRdvList((data ?? []) as ResaToday[])
         setLastSeenAt(new Date().toISOString())
-        setUnreadNotif(0)  // reset badge quand l'employé ouvre le panneau
+        setUnreadNotif(0)
+        import('expo-notifications').then(Notifications => {
+          Notifications.setBadgeCountAsync(0)
+        }).catch(() => {})
       })
   }, [tab, employe?.id])
 
