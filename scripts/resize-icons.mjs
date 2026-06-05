@@ -2,8 +2,8 @@ import sharp from 'sharp'
 import { renameSync, existsSync, copyFileSync } from 'fs'
 
 const CANVAS = 1024
-const LOGO_SIZE = 563               // 55% de 1024
-const PAD = Math.floor((CANVAS - LOGO_SIZE) / 2)  // 230px de chaque côté
+const LOGO_SIZE = 410               // 40% de 1024
+const PAD = Math.floor((CANVAS - LOGO_SIZE) / 2)  // 307px de chaque côté
 
 // Source originale — jamais écrasée par ce script
 const SOURCE = 'assets/icon-original.png'
