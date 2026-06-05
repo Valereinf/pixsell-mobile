@@ -16,6 +16,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.pixsell.mobile",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",

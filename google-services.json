@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "64515849254",
+    "project_id": "pixsell-386f8",
+    "storage_bucket": "pixsell-386f8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:64515849254:android:ee4c793bfc47d54606fae7",
+        "android_client_info": {
+          "package_name": "com.pixsell.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCqgtQj7GRGngHY34SGBlAo8GBWjz-3Luo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
