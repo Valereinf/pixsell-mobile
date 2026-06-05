@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, ActivityIndicator, Alert, Platform, KeyboardAvoidingView,
+  AppState, type AppStateStatus,
 } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -224,24 +225,67 @@ export default function EmployePortal() {
       })
   }, [tab, employe?.id])
 
-  // Realtime — badge cloche incrémenté à chaque nouvelle réservation
+  // Realtime — badge cloche + reconnexion au retour foreground
   useEffect(() => {
     if (!employe?.id) return
-    const channel = supabase
-      .channel('employe-notif-' + employe.id)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'reservations',
-        filter: `employee_id=eq.${employe.id}`,
-      }, () => {
-        setUnreadNotif(prev => prev + 1)
-      })
-      .subscribe((status) => {
-        console.log('[Realtime] employe notif status:', status)
-      })
-    return () => { supabase.removeChannel(channel) }
+
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
+    const connectChannel = () => {
+      if (channel) supabase.removeChannel(channel)
+      channel = supabase
+        .channel('employe-notif-' + employe.id + '-' + Date.now())
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'reservations',
+          filter: `employee_id=eq.${employe.id}`,
+        }, () => {
+          setUnreadNotif(prev => prev + 1)
+        })
+        .subscribe((status) => {
+          console.log('[Realtime] employe notif status:', status)
+        })
+    }
+
+    connectChannel()
+
+    const handleAppStateForRealtime = (nextState: AppStateStatus) => {
+      if (nextState === 'active') {
+        console.log('[Realtime] foreground → reconnect channel')
+        connectChannel()
+      }
+    }
+    const sub = AppState.addEventListener('change', handleAppStateForRealtime)
+
+    return () => {
+      sub.remove()
+      if (channel) supabase.removeChannel(channel)
+    }
   }, [employe?.id])
+
+  // AppState — re-fetch session au retour foreground
+  useEffect(() => {
+    const handleAppStateChange = async (nextState: AppStateStatus) => {
+      if (nextState === 'active') {
+        const keys = await AsyncStorage.getAllKeys()
+        const tokenKey = keys.find(k => k.startsWith('employe_token_'))
+        if (!tokenKey) return
+        const tok = await AsyncStorage.getItem(tokenKey)
+        if (!tok) return
+        try {
+          const data = await getMe(tok)
+          applyMeData(data)
+          await loadTabData(tok, tab)
+        } catch {
+          await AsyncStorage.removeItem(tokenKey)
+          setView('login')
+        }
+      }
+    }
+    const sub = AppState.addEventListener('change', handleAppStateChange)
+    return () => sub.remove()
+  }, [tab])
 
   // Profil edit
   const [editPrenom, setEditPrenom] = useState('')
