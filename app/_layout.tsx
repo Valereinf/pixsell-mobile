@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Animated, View, StyleSheet, Dimensions } from 'react-native'
 import * as SplashScreen from 'expo-splash-screen'
-import { Stack } from 'expo-router'
+import { Stack, useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { supabase } from '../lib/supabase'
 import { setupNotificationHandler, registerPushToken } from '../lib/notifications'
@@ -11,6 +11,7 @@ SplashScreen.preventAutoHideAsync()
 const { width } = Dimensions.get('window')
 
 export default function RootLayout() {
+  const router = useRouter()
   const [appReady, setAppReady] = useState(false)
   const [splashDone, setSplashDone] = useState(false)
 
@@ -21,19 +22,50 @@ export default function RootLayout() {
     setTimeout(() => setAppReady(true), 300)
   }, [])
 
-  // Setup notification handler + auth listener
+  // Setup notification handler + auth listener + tap listener
   useEffect(() => {
     setupNotificationHandler()
+
+    // ── Auth listener ──────────────────────────────────────────────
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('[_layout] auth event:', event, 'uid:', session?.user?.id ?? 'null')
-      // INITIAL_SESSION = session restaurée depuis AsyncStorage (app restart)
-      // SIGNED_IN = nouvelle connexion
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
         registerPushToken({ ownerId: session.user.id })
       }
     })
+
+    // ── Notification tap listener (import dynamique — même stratégie) ──
+    let responseSub: { remove: () => void } | null = null
+    import('expo-notifications').then(Notifications => {
+      // Tap sur notification quand l'app est ouverte (foreground/background)
+      responseSub = Notifications.addNotificationResponseReceivedListener(response => {
+        const data = response.notification.request.content.data as {
+          event?: string
+          reservation_id?: string
+          company_id?: string
+        }
+        if (data?.reservation_id &&
+            (data?.event === 'new_reservation' || data?.event === 'cancelled')) {
+          router.push(`/(owner)/reservation/${data.reservation_id}` as Parameters<typeof router.push>[0])
+        }
+      })
+
+      // Cold start : app fermée, user tape la notification
+      Notifications.getLastNotificationResponseAsync().then(response => {
+        if (!response) return
+        const data = response.notification.request.content.data as {
+          event?: string
+          reservation_id?: string
+        }
+        if (data?.reservation_id) {
+          router.push(`/(owner)/reservation/${data.reservation_id}` as Parameters<typeof router.push>[0])
+        }
+      }).catch(() => {})
+    }).catch(() => {})
+
     return () => {
       subscription.unsubscribe()
+      responseSub?.remove()
     }
   }, [])
 
