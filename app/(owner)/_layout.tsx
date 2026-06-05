@@ -86,7 +86,6 @@ export default function OwnerLayout() {
           />
 
           {/* Hidden screens */}
-          <Tabs.Screen name="reservation/[id]" options={{ href: null, tabBarButton: () => null }} />
           <Tabs.Screen name="employes"      options={{ href: null }} />
           <Tabs.Screen name="agenda-collab" options={{ href: null }} />
           <Tabs.Screen name="services"      options={{ href: null }} />

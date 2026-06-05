@@ -58,7 +58,9 @@ export default function RootLayout() {
           reservation_id?: string
         }
         if (data?.reservation_id) {
-          router.push(`/(owner)/reservation/${data.reservation_id}` as Parameters<typeof router.push>[0])
+          setTimeout(() => {
+            router.push(`/(owner)/reservation/${data.reservation_id}` as Parameters<typeof router.push>[0])
+          }, 500)
         }
       }).catch(() => {})
     }).catch(() => {})
