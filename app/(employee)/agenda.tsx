@@ -518,8 +518,12 @@ export default function EmployePortal() {
   if (view === 'login') {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f3ff' }}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
             <View style={{ alignItems: 'center', marginBottom: 40 }}>
               <LinearGradient colors={['#7c3aed', '#ec4899']} style={s.loginLogo}>
                 <Ionicons name="people-outline" size={32} color="#fff" />
