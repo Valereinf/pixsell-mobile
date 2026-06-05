@@ -169,18 +169,28 @@ export default function DashboardScreen() {
 
   // ── Realtime subscription — activités récentes ───────────────
   useEffect(() => {
-    if (!company) return
+    if (!company?.id) return
     const channel = supabase
-      .channel(`dashboard-reservations:${company.id}`)
+      .channel('dashboard-recent-' + company.id)
       .on('postgres_changes', {
-        event: '*',
+        event: 'INSERT',
         schema: 'public',
         table: 'reservations',
         filter: `company_id=eq.${company.id}`,
-      }, async () => {
-        setRecent(await fetchRecent(company.id))
+      }, () => {
+        fetchRecent(company.id).then(setRecent)
       })
-      .subscribe()
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'reservations',
+        filter: `company_id=eq.${company.id}`,
+      }, () => {
+        fetchRecent(company.id).then(setRecent)
+      })
+      .subscribe((status) => {
+        console.log('[Realtime] dashboard status:', status)
+      })
     return () => { supabase.removeChannel(channel) }
   }, [company?.id])
 

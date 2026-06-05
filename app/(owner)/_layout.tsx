@@ -62,9 +62,9 @@ export default function OwnerLayout() {
             tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
           }}
         >
+          <Tabs.Screen name="dashboard"    options={{ title: 'Dashboard',    tabBarIcon: ({ color }) => <Ionicons name="grid-outline"            size={22} color={color} /> }} />
           <Tabs.Screen name="calendrier"   options={{ title: 'Calendrier',   tabBarIcon: ({ color }) => <Ionicons name="calendar-clear-outline" size={22} color={color} /> }} />
           <Tabs.Screen name="reservations" options={{ title: 'Réservations', tabBarIcon: ({ color }) => <Ionicons name="calendar-outline"       size={22} color={color} /> }} />
-          <Tabs.Screen name="dashboard"    options={{ title: 'Dashboard',    tabBarIcon: ({ color }) => <Ionicons name="grid-outline"            size={22} color={color} /> }} />
           <Tabs.Screen name="clients"      options={{ title: 'Clients',      tabBarIcon: ({ color }) => <Ionicons name="people-circle-outline"   size={22} color={color} /> }} />
           <Tabs.Screen name="marketing"    options={{ title: 'Marketing',    tabBarIcon: ({ color }) => <Ionicons name="megaphone-outline"       size={22} color={color} /> }} />
 
@@ -85,7 +85,8 @@ export default function OwnerLayout() {
             }}
           />
 
-          {/* Hidden screens — accessible via More modal */}
+          {/* Hidden screens */}
+          <Tabs.Screen name="reservation/[id]" options={{ href: null, tabBarButton: () => null }} />
           <Tabs.Screen name="employes"      options={{ href: null }} />
           <Tabs.Screen name="agenda-collab" options={{ href: null }} />
           <Tabs.Screen name="services"      options={{ href: null }} />

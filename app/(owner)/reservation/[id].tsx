@@ -128,7 +128,7 @@ export default function ReservationDetailScreen() {
       <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f3ff' }} edges={['top']}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
           <Text style={{ color: '#6b7280', fontSize: 16 }}>Réservation introuvable</Text>
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+          <TouchableOpacity onPress={() => router.replace('/(owner)/dashboard')} style={s.backBtn}>
             <Text style={{ color: '#7c3aed', fontWeight: '600' }}>Retour</Text>
           </TouchableOpacity>
         </View>
@@ -144,7 +144,7 @@ export default function ReservationDetailScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f3ff' }} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+        <TouchableOpacity onPress={() => router.replace('/(owner)/dashboard')} style={s.backBtn}>
           <Ionicons name="chevron-back" size={22} color="#7c3aed" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Réservation</Text>
