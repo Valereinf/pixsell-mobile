@@ -38,30 +38,32 @@ export default function RootLayout() {
     let responseSub: { remove: () => void } | null = null
     import('expo-notifications').then(Notifications => {
       // Tap sur notification quand l'app est ouverte (foreground/background)
-      responseSub = Notifications.addNotificationResponseReceivedListener(response => {
+      responseSub = Notifications.addNotificationResponseReceivedListener(async response => {
         const data = response.notification.request.content.data as {
           event?: string
           reservation_id?: string
           company_id?: string
         }
-        if (data?.reservation_id &&
-            (data?.event === 'new_reservation' || data?.event === 'cancelled')) {
-          router.push(`/(owner)/reservation/${data.reservation_id}` as Parameters<typeof router.push>[0])
-        }
+        if (!data?.reservation_id) return
+        if (data?.event !== 'new_reservation' && data?.event !== 'cancelled') return
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return  // employé connecté → ne pas naviguer
+        router.push(`/(owner)/reservation/${data.reservation_id}` as Parameters<typeof router.push>[0])
       })
 
       // Cold start : app fermée, user tape la notification
-      Notifications.getLastNotificationResponseAsync().then(response => {
+      Notifications.getLastNotificationResponseAsync().then(async response => {
         if (!response) return
         const data = response.notification.request.content.data as {
           event?: string
           reservation_id?: string
         }
-        if (data?.reservation_id) {
-          setTimeout(() => {
-            router.push(`/(owner)/reservation/${data.reservation_id}` as Parameters<typeof router.push>[0])
-          }, 500)
-        }
+        if (!data?.reservation_id) return
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return  // employé connecté → ignorer
+        setTimeout(() => {
+          router.push(`/(owner)/reservation/${data.reservation_id}` as Parameters<typeof router.push>[0])
+        }, 500)
       }).catch(() => {})
     }).catch(() => {})
 
