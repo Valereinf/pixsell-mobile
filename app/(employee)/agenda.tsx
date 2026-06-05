@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
-  View, Text, ScrollView, TouchableOpacity, TextInput,
+  View, Text, ScrollView, TouchableOpacity, TextInput, Image,
   StyleSheet, ActivityIndicator, Alert, Platform, KeyboardAvoidingView,
   AppState, type AppStateStatus,
 } from 'react-native'
@@ -118,6 +118,14 @@ function groupByDate(resas: ResaToday[]): [string, ResaToday[]][] {
 
 function AvatarCircle({ employe }: { employe: EmployeProfile | null }) {
   if (!employe) return null
+  if (employe.photo_url) {
+    return (
+      <Image
+        source={{ uri: employe.photo_url }}
+        style={s.avatarCircle}
+      />
+    )
+  }
   return (
     <LinearGradient colors={['#7c3aed', '#ec4899']} style={s.avatarCircle}>
       <Text style={s.avatarText}>{initiales(employe.prenom, employe.nom)}</Text>
@@ -639,23 +647,27 @@ export default function EmployePortal() {
         {/* Notifications */}
         {notifs.length > 0 && (
           <Card>
-            <Text style={s.cardTitle}>Notifications</Text>
-            <View style={{ gap: 8, marginTop: 8 }}>
-              {notifs.slice(0, 5).map(n => (
+            <Text style={s.sectionTitle}>Notifications</Text>
+            <ScrollView
+              style={{ maxHeight: 120 }}
+              nestedScrollEnabled={true}
+              showsVerticalScrollIndicator={true}
+            >
+              {notifs.slice(0, 30).map(n => (
                 <View key={n.id} style={[s.notifRow, { opacity: n.lu ? 0.6 : 1 }]}>
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }}>{n.titre}</Text>
-                    <Text style={{ fontSize: 12, color: '#6b7280' }}>{n.message}</Text>
-                    <Text style={{ fontSize: 11, color: '#9ca3af' }}>{relativeTime(n.created_at)}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.notifTitre}>🔔 {n.titre}</Text>
+                    <Text style={s.notifMessage}>{n.message}</Text>
+                    <Text style={s.notifTime}>{relativeTime(n.created_at)}</Text>
                   </View>
                   {!n.lu && (
-                    <TouchableOpacity style={s.luBtn} onPress={() => handleMarkNotifRead(n.id)}>
-                      <Text style={{ fontSize: 11, color: '#7c3aed', fontWeight: '600' }}>Lu</Text>
+                    <TouchableOpacity onPress={() => handleMarkNotifRead(n.id)} style={s.notifLuBtn}>
+                      <Text style={s.notifLuText}>Lu</Text>
                     </TouchableOpacity>
                   )}
                 </View>
               ))}
-            </View>
+            </ScrollView>
           </Card>
         )}
 
@@ -1370,8 +1382,13 @@ const s = StyleSheet.create({
   // Notif
   notifRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
   },
+  notifTitre: { fontSize: 13, fontWeight: '700', color: '#111827' },
+  notifMessage: { fontSize: 12, color: '#6b7280', marginTop: 1 },
+  notifTime: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
+  notifLuBtn: { backgroundColor: '#ede9fe', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  notifLuText: { fontSize: 11, color: '#7c3aed', fontWeight: '600' },
   luBtn: {
     backgroundColor: '#ede9fe', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
   },
