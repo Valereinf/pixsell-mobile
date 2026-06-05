@@ -51,6 +51,16 @@ function inits(prenom: string | null, nom: string | null) {
   return `${(prenom?.[0] ?? '').toUpperCase()}${(nom?.[0] ?? '').toUpperCase()}`
 }
 
+async function fetchRecent(companyId: string): Promise<Resa[]> {
+  const { data } = await supabase
+    .from('reservations')
+    .select('id, client_prenom, client_nom, service, date_rdv, heure_rdv, statut, prix')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false })
+    .limit(10)
+  return (data ?? []) as Resa[]
+}
+
 // ── Main Component ───────────────────────────────────────────────
 export default function DashboardScreen() {
   const router = useRouter()
@@ -110,7 +120,6 @@ export default function DashboardScreen() {
       const [
         { count: monthResCount },
         { data: monthResas },
-        { data: recentResas },
         { data: twoWeekResas },
       ] = await Promise.all([
         supabase.from('reservations')
@@ -121,12 +130,6 @@ export default function DashboardScreen() {
           .select('statut, prix')
           .eq('company_id', company.id)
           .gte('date_rdv', isoMonth),
-        supabase.from('reservations')
-          .select('id, client_prenom, client_nom, service, date_rdv, heure_rdv, statut, prix')
-          .eq('company_id', company.id)
-          .order('date_rdv', { ascending: false })
-          .order('heure_rdv', { ascending: false })
-          .limit(4),
         supabase.from('reservations')
           .select('date_rdv, prix, statut')
           .eq('company_id', company.id)
@@ -142,7 +145,6 @@ export default function DashboardScreen() {
       setRevenue(rev)
       const bad = allMonth.filter(r => r.statut === 'cancelled' || r.statut === 'no_show').length
       setCancelRate(allMonth.length > 0 ? Math.round((bad / allMonth.length) * 100) : 0)
-      setRecent((recentResas ?? []) as Resa[])
 
       const rdvToday = (twoWeekResas ?? []).filter(r => r.date_rdv === todayLocal).length
       setRdvAujourdhui(rdvToday)
@@ -158,8 +160,28 @@ export default function DashboardScreen() {
       }
       setWeekData(thisWeek)
       setPrevWeekData(prevWeek)
+
+      // Initial fetch des activités récentes
+      setRecent(await fetchRecent(company.id))
     }
     load()
+  }, [company?.id])
+
+  // ── Realtime subscription — activités récentes ───────────────
+  useEffect(() => {
+    if (!company) return
+    const channel = supabase
+      .channel(`dashboard-reservations:${company.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'reservations',
+        filter: `company_id=eq.${company.id}`,
+      }, async () => {
+        setRecent(await fetchRecent(company.id))
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
   }, [company?.id])
 
   // ── Calendar dates ───────────────────────────────────────────
@@ -239,6 +261,59 @@ export default function DashboardScreen() {
           <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ color: 'white', fontSize: 13, fontWeight: '700' }}>{ownerInitials}</Text>
           </View>
+        </View>
+
+        {/* ── Activités récentes ── */}
+        <View style={[s.card, { marginBottom: 16 }]}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827', marginBottom: 12 }}>
+            Activités récentes
+          </Text>
+          {recent.length === 0 ? (
+            <Text style={{ fontSize: 13, color: '#9ca3af', textAlign: 'center', paddingVertical: 12 }}>
+              Aucune activité
+            </Text>
+          ) : (
+            recent.map((r, i) => {
+              const sc = STATUS_COLOR[r.statut] ?? STATUS_COLOR.pending
+              return (
+                <TouchableOpacity
+                  key={r.id}
+                  onPress={() => router.push(`/(owner)/reservation/${r.id}` as Parameters<typeof router.push>[0])}
+                  activeOpacity={0.7}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 10,
+                    paddingVertical: 8,
+                    borderBottomWidth: i < recent.length - 1 ? 1 : 0,
+                    borderBottomColor: 'rgba(0,0,0,0.05)',
+                  }}
+                >
+                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ color: 'white', fontSize: 12, fontWeight: '700' }}>
+                      {inits(r.client_prenom, r.client_nom)}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827' }} numberOfLines={1}>
+                      {clientName(r)}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: '#9ca3af' }} numberOfLines={1}>
+                      {r.service || '—'}
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={{ fontSize: 11, color: '#9ca3af', marginBottom: 2 }}>
+                      {r.date_rdv} {r.heure_rdv?.slice(0, 5)}
+                    </Text>
+                    <View style={{ backgroundColor: sc.bg, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 }}>
+                      <Text style={{ fontSize: 10, fontWeight: '600', color: sc.color }}>
+                        {STATUS_LABEL[r.statut] ?? r.statut}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              )
+            })
+          )}
         </View>
 
         {/* ── KPI Cards ── */}
@@ -349,56 +424,8 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* ── Activités récentes ── */}
-        <View style={s.card}>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827', marginBottom: 12 }}>
-            Activités récentes
-          </Text>
-          {recent.length === 0 ? (
-            <Text style={{ fontSize: 13, color: '#9ca3af', textAlign: 'center', paddingVertical: 12 }}>
-              Aucune activité
-            </Text>
-          ) : (
-            recent.map((r, i) => {
-              const sc = STATUS_COLOR[r.statut] ?? STATUS_COLOR.pending
-              return (
-                <View key={r.id} style={{
-                  flexDirection: 'row', alignItems: 'center', gap: 10,
-                  paddingVertical: 8,
-                  borderBottomWidth: i < recent.length - 1 ? 1 : 0,
-                  borderBottomColor: 'rgba(0,0,0,0.05)',
-                }}>
-                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ color: 'white', fontSize: 12, fontWeight: '700' }}>
-                      {inits(r.client_prenom, r.client_nom)}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827' }} numberOfLines={1}>
-                      {clientName(r)}
-                    </Text>
-                    <Text style={{ fontSize: 11, color: '#9ca3af' }} numberOfLines={1}>
-                      {r.service || '—'}
-                    </Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontSize: 11, color: '#9ca3af', marginBottom: 2 }}>
-                      {r.heure_rdv?.slice(0, 5)}
-                    </Text>
-                    <View style={{ backgroundColor: sc.bg, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 }}>
-                      <Text style={{ fontSize: 10, fontWeight: '600', color: sc.color }}>
-                        {STATUS_LABEL[r.statut] ?? r.statut}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              )
-            })
-          )}
-        </View>
-
         {/* ── Accès rapide ── */}
-        <View style={[s.card, { marginTop: 12 }]}>
+        <View style={[s.card, { marginTop: 0 }]}>
           <Text style={{ fontSize: 12, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>
             Accès rapide
           </Text>
