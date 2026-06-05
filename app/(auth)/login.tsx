@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Image,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
 import { supabase } from '../../lib/supabase'
@@ -58,6 +59,7 @@ export default function Login() {
   }
 
   return (
+    <SafeAreaView edges={['top']} style={{ flex: 1 }}>
     <LinearGradient colors={['#ddd6fe', '#f5d0fe', '#fce7f3']} style={{ flex: 1 }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -169,6 +171,7 @@ export default function Login() {
         </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>
+    </SafeAreaView>
   )
 }
 
