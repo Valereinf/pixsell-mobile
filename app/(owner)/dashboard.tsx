@@ -81,14 +81,22 @@ export default function DashboardScreen() {
   // ── Load company ─────────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.replace('/(auth)/login'); return }
-      const { data } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('owner_email', user.email)
-        .single()
-      if (data) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) { router.replace('/(auth)/login'); return }
+
+        const { data, error } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('owner_email', user.email)
+          .single()
+
+        if (error || !data) {
+          console.error('[Dashboard] company not found:', error?.message)
+          router.replace('/(auth)/login')
+          return
+        }
+
         setCompany(data as Company)
         setContextCompany(data as Company)
         const meta = user.user_metadata ?? {}
@@ -96,6 +104,9 @@ export default function DashboardScreen() {
           || (meta.name as string | undefined)
           || ''
         setOwnerName(name.trim() || data.name)
+      } catch (e) {
+        console.error('[Dashboard] crash:', e)
+        router.replace('/(auth)/login')
       }
     }
     load()
