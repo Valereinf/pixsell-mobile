@@ -9,6 +9,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 import { registerPushToken } from '../../lib/notifications'
+import { supabase } from '../../lib/supabase'
 import {
   loginEmploye, logoutEmploye, getMe, getDemandes, getStats,
   getGratifications, getRdv, getNotifications,
@@ -18,7 +19,7 @@ import type { EmployeProfile } from '../../lib/employeAuth'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type Tab = 'accueil' | 'mesrdv' | 'demandes' | 'profil' | 'performances' | 'gratifications'
+type Tab = 'accueil' | 'mesrdv' | 'demandes' | 'profil' | 'performances' | 'gratifications' | 'notifications_rdv' | 'historique_rdv'
 
 interface ResaToday {
   id: string; date_rdv: string; heure_rdv: string; service: string | null
@@ -204,6 +205,24 @@ export default function EmployePortal() {
   const [demandes, setDemandes] = useState<DemandeRH[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [gratifs, setGratifs] = useState<Gratif[]>([])
+  const [notifRdvList, setNotifRdvList] = useState<ResaToday[]>([])
+
+  // unreadNotif = RDV à venir en attente de confirmation
+  useEffect(() => {
+    setUnreadNotif(rdvUpcoming.filter(r => r.statut === 'en_attente').length)
+  }, [rdvUpcoming])
+
+  // Fetch notifications_rdv depuis Supabase quand l'onglet est actif
+  useEffect(() => {
+    if (tab !== 'notifications_rdv' || !employe?.id) return
+    supabase
+      .from('reservations')
+      .select('id, date_rdv, heure_rdv, service, client_prenom, client_nom, statut, prix, duree_rdv')
+      .eq('employe_id', employe.id)
+      .order('created_at', { ascending: false })
+      .limit(10)
+      .then(({ data }) => setNotifRdvList((data ?? []) as ResaToday[]))
+  }, [tab, employe?.id])
 
   // Profil edit
   const [editPrenom, setEditPrenom] = useState('')
@@ -612,7 +631,6 @@ export default function EmployePortal() {
 
   function MesRdvTab() {
     const upGroups = groupByDate(rdvUpcoming)
-    const histGroups = groupByDate(rdvHistory)
     return (
       <View style={{ padding: 16, gap: 16, paddingBottom: 24 }}>
         {resasToday.length > 0 && (
@@ -638,24 +656,10 @@ export default function EmployePortal() {
           </Card>
         )}
 
-        {histGroups.length > 0 && (
-          <Card>
-            <SectionTitle title="Historique — 30 jours" />
-            {histGroups.map(([date, items]) => (
-              <View key={date} style={{ marginTop: 8 }}>
-                <Text style={s.dateGroupLabel}>{dateFR(date)}</Text>
-                <View style={{ gap: 6, marginTop: 4 }}>
-                  {items.map(r => <RdvCard key={r.id} r={r} />)}
-                </View>
-              </View>
-            ))}
-          </Card>
-        )}
-
-        {resasToday.length === 0 && upGroups.length === 0 && histGroups.length === 0 && (
+        {resasToday.length === 0 && upGroups.length === 0 && (
           <View style={s.emptyState}>
             <Ionicons name="calendar-outline" size={48} color="#c4b5fd" />
-            <Text style={s.emptyText}>Aucun rendez-vous</Text>
+            <Text style={s.emptyText}>Aucun rendez-vous à venir</Text>
           </View>
         )}
       </View>
@@ -1082,6 +1086,52 @@ export default function EmployePortal() {
     )
   }
 
+  function NotificationsRdvTab() {
+    return (
+      <View style={{ padding: 16, gap: 16, paddingBottom: 24 }}>
+        <Text style={s.cardTitle}>Notifications RDV</Text>
+        {notifRdvList.length === 0 ? (
+          <View style={s.emptyState}>
+            <Ionicons name="notifications-outline" size={48} color="#c4b5fd" />
+            <Text style={s.emptyText}>Aucune réservation récente</Text>
+          </View>
+        ) : (
+          <Card>
+            <View style={{ gap: 8 }}>
+              {notifRdvList.map(r => <RdvCard key={r.id} r={r} />)}
+            </View>
+          </Card>
+        )}
+      </View>
+    )
+  }
+
+  function HistoriqueRdvTab() {
+    const histGroups = groupByDate(rdvHistory)
+    return (
+      <View style={{ padding: 16, gap: 16, paddingBottom: 24 }}>
+        {histGroups.length > 0 ? (
+          <Card>
+            <SectionTitle title="Historique — 30 jours" />
+            {histGroups.map(([date, items]) => (
+              <View key={date} style={{ marginTop: 8 }}>
+                <Text style={s.dateGroupLabel}>{dateFR(date)}</Text>
+                <View style={{ gap: 6, marginTop: 4 }}>
+                  {items.map(r => <RdvCard key={r.id} r={r} />)}
+                </View>
+              </View>
+            ))}
+          </Card>
+        ) : (
+          <View style={s.emptyState}>
+            <Ionicons name="time-outline" size={48} color="#c4b5fd" />
+            <Text style={s.emptyText}>Aucun historique disponible</Text>
+          </View>
+        )}
+      </View>
+    )
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f3ff' }} edges={['top']}>
       {/* Header */}
@@ -1102,6 +1152,17 @@ export default function EmployePortal() {
             <Text style={{ fontSize: 11, color: '#7c3aed', fontWeight: '700' }}>{unreadGratif}</Text>
           </TouchableOpacity>
         )}
+        <TouchableOpacity
+          onPress={() => switchTab('notifications_rdv')}
+          style={{ marginRight: 8, position: 'relative' }}
+        >
+          <Ionicons name="notifications-outline" size={24} color="#7c3aed" />
+          {unreadNotif > 0 && (
+            <View style={s.notifBadge}>
+              <Text style={s.notifBadgeText}>{unreadNotif}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
         <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={18} color="#ef4444" />
         </TouchableOpacity>
@@ -1109,23 +1170,26 @@ export default function EmployePortal() {
 
       {/* Content */}
       <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
-        {tab === 'accueil'        && <AccueilTab />}
-        {tab === 'mesrdv'         && <MesRdvTab />}
-        {tab === 'demandes'       && <DemandesTab />}
-        {tab === 'profil'         && <ProfilTab />}
-        {tab === 'performances'   && <PerformancesTab />}
-        {tab === 'gratifications' && <GratificationsTab />}
+        {tab === 'accueil'           && <AccueilTab />}
+        {tab === 'mesrdv'            && <MesRdvTab />}
+        {tab === 'demandes'          && <DemandesTab />}
+        {tab === 'profil'            && <ProfilTab />}
+        {tab === 'performances'      && <PerformancesTab />}
+        {tab === 'gratifications'    && <GratificationsTab />}
+        {tab === 'notifications_rdv' && <NotificationsRdvTab />}
+        {tab === 'historique_rdv'    && <HistoriqueRdvTab />}
       </ScrollView>
 
       {/* Bottom tab bar */}
       <View style={[s.tabBar, { paddingBottom: insets.bottom > 0 ? insets.bottom : 8 }]}>
         {([
-          { id: 'accueil',        icon: 'home-outline',         label: 'Accueil',   badge: unreadNotif },
-          { id: 'mesrdv',         icon: 'calendar-outline',     label: 'Mes RDV',   badge: 0 },
-          { id: 'demandes',       icon: 'document-text-outline', label: 'Demandes', badge: 0 },
-          { id: 'profil',         icon: 'person-outline',       label: 'Profil',    badge: 0 },
-          { id: 'performances',   icon: 'stats-chart-outline',  label: 'Perfs',     badge: 0 },
-          { id: 'gratifications', icon: 'gift-outline',         label: 'Gratifs',   badge: unreadGratif },
+          { id: 'accueil',           icon: 'home-outline',          label: 'Accueil',   badge: 0 },
+          { id: 'mesrdv',            icon: 'calendar-outline',      label: 'Mes RDV',   badge: 0 },
+          { id: 'historique_rdv',    icon: 'time-outline',          label: 'Historique', badge: 0 },
+          { id: 'demandes',          icon: 'document-text-outline', label: 'Demandes',  badge: 0 },
+          { id: 'profil',            icon: 'person-outline',        label: 'Profil',    badge: 0 },
+          { id: 'performances',      icon: 'stats-chart-outline',   label: 'Perfs',     badge: 0 },
+          { id: 'gratifications',    icon: 'gift-outline',          label: 'Gratifs',   badge: unreadGratif },
         ] as { id: Tab; icon: string; label: string; badge: number }[]).map(t => (
           <TouchableOpacity
             key={t.id}
@@ -1190,6 +1254,12 @@ const s = StyleSheet.create({
     width: 36, height: 36, borderRadius: 10, backgroundColor: '#fef2f2',
     alignItems: 'center', justifyContent: 'center',
   },
+  notifBadge: {
+    position: 'absolute', top: -4, right: -4,
+    backgroundColor: '#ef4444', borderRadius: 8,
+    minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center',
+  },
+  notifBadgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
 
   // Cards
   card: {
