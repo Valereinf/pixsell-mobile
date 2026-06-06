@@ -291,6 +291,7 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f3ff' }} edges={['top']}>
+      <Text style={{ color: 'red', fontSize: 10 }}>v{require('../../app.json').expo.version}</Text>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
