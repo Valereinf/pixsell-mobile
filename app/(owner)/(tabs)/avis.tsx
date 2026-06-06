@@ -5,9 +5,9 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { supabase } from '../../lib/supabase'
-import type { Company } from '../../lib/types'
-import { useOwnerContext } from '../../lib/ownerContext'
+import { supabase } from '../../../lib/supabase'
+import type { Company } from '../../../lib/types'
+import { useOwnerContext } from '../../../lib/ownerContext'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 

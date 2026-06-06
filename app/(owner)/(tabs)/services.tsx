@@ -7,9 +7,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
-import { supabase } from '../../lib/supabase'
-import type { Company } from '../../lib/types'
-import { useOwnerContext } from '../../lib/ownerContext'
+import { supabase } from '../../../lib/supabase'
+import type { Company } from '../../../lib/types'
+import { useOwnerContext } from '../../../lib/ownerContext'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 

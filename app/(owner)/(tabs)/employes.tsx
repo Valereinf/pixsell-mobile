@@ -7,9 +7,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { supabase } from '../../lib/supabase'
-import type { Company } from '../../lib/types'
-import { useOwnerContext } from '../../lib/ownerContext'
+import { supabase } from '../../../lib/supabase'
+import type { Company } from '../../../lib/types'
+import { useOwnerContext } from '../../../lib/ownerContext'
 
 const NETLIFY_URL = 'https://app.pixsellmedia.ca'
 
