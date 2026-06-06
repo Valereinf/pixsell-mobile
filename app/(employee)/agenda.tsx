@@ -246,6 +246,7 @@ export default function EmployePortal() {
     if (!employe?.id) return
 
     let channel: ReturnType<typeof supabase.channel> | null = null
+    let gratifChannel: ReturnType<typeof supabase.channel> | null = null
 
     const connectChannel = () => {
       if (channel) supabase.removeChannel(channel)
@@ -266,6 +267,22 @@ export default function EmployePortal() {
 
     connectChannel()
 
+    gratifChannel = supabase
+      .channel('employe-gratif-' + employe.id)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'gratifications',
+        filter: `employe_id=eq.${employe.id}`,
+      }, async () => {
+        if (token) {
+          const data = await getGratifications(token)
+          setGratifs((data.gratifications as Gratif[]) ?? [])
+          setUnreadGratif(prev => prev + 1)
+        }
+      })
+      .subscribe()
+
     const handleAppStateForRealtime = (nextState: AppStateStatus) => {
       if (nextState === 'active') {
         console.log('[Realtime] foreground → reconnect channel')
@@ -277,6 +294,7 @@ export default function EmployePortal() {
     return () => {
       sub.remove()
       if (channel) supabase.removeChannel(channel)
+      if (gratifChannel) supabase.removeChannel(gratifChannel)
     }
   }, [employe?.id])
 
