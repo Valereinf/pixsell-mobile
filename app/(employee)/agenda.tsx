@@ -162,6 +162,11 @@ function RdvCard({ r }: { r: ResaToday }) {
     <View style={s.rdvCard}>
       <View style={s.rdvTimeBox}>
         <Text style={s.rdvTime}>{r.heure_rdv?.slice(0, 5)}</Text>
+        {r.date_rdv && (
+          <Text style={{ fontSize: 10, color: '#9ca3af' }}>
+            {new Date(r.date_rdv).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+          </Text>
+        )}
         {r.duree_rdv ? <Text style={s.rdvDuree}>{r.duree_rdv}min</Text> : null}
       </View>
       <View style={{ flex: 1, gap: 4 }}>
@@ -287,6 +292,16 @@ export default function EmployePortal() {
         try {
           const data = await getMe(tok)
           applyMeData(data)
+          supabase
+            .from('reservations')
+            .select('id', { count: 'exact' })
+            .eq('employee_id', ((data.employe ?? data) as { id: string }).id)
+            .eq('statut', 'en_attente')
+            .order('created_at', { ascending: false })
+            .limit(10)
+            .then(({ count }) => {
+              if (count && count > 0) setUnreadNotif(count)
+            })
           await loadTabData(tok, tab)
         } catch {
           await AsyncStorage.removeItem(tokenKey)
@@ -342,6 +357,16 @@ export default function EmployePortal() {
           try {
             const data = await getMe(tok)
             applyMeData(data)
+            supabase
+              .from('reservations')
+              .select('id', { count: 'exact' })
+              .eq('employee_id', ((data.employe ?? data) as { id: string }).id)
+              .eq('statut', 'en_attente')
+              .order('created_at', { ascending: false })
+              .limit(10)
+              .then(({ count }) => {
+                if (count && count > 0) setUnreadNotif(count)
+              })
             await loadTabData(tok, 'accueil')
             setView('portal')
             registerPushToken({ employeId: ((data.employe ?? data) as { id: string }).id })

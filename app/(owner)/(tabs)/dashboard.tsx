@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import {
-  View, Text, ScrollView, TouchableOpacity,
+  View, Text, ScrollView, TouchableOpacity, Image,
   StyleSheet, Dimensions, AppState, type AppStateStatus,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -307,9 +307,16 @@ export default function DashboardScreen() {
               Bienvenue sur votre tableau de bord
             </Text>
           </View>
-          <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: 'white', fontSize: 13, fontWeight: '700' }}>{ownerInitials}</Text>
-          </View>
+          {company?.logo_url ? (
+            <Image
+              source={{ uri: company.logo_url }}
+              style={{ width: 42, height: 42, borderRadius: 21 }}
+            />
+          ) : (
+            <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: 'white', fontSize: 13, fontWeight: '700' }}>{ownerInitials}</Text>
+            </View>
+          )}
         </View>
 
         {/* ── Activités récentes ── */}

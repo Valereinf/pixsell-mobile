@@ -63,7 +63,7 @@ export default function RootLayout() {
         if (!user) return  // employé connecté → ignorer
         setTimeout(() => {
           router.push(`/(owner)/reservation/${data.reservation_id}` as Parameters<typeof router.push>[0])
-        }, 500)
+        }, 1800)
       }).catch(() => {})
     }).catch(() => {})
 
