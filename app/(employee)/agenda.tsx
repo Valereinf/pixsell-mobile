@@ -163,8 +163,8 @@ function RdvCard({ r }: { r: ResaToday }) {
       <View style={s.rdvTimeBox}>
         <Text style={s.rdvTime}>{r.heure_rdv?.slice(0, 5)}</Text>
         {r.date_rdv && (
-          <Text style={{ fontSize: 10, color: '#9ca3af' }}>
-            {new Date(r.date_rdv).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+          <Text style={{ fontSize: 10, color: '#9ca3af', textAlign: 'center' }}>
+            {new Date(r.date_rdv).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
           </Text>
         )}
         {r.duree_rdv ? <Text style={s.rdvDuree}>{r.duree_rdv}min</Text> : null}
@@ -230,7 +230,7 @@ export default function EmployePortal() {
       .select('id, date_rdv, heure_rdv, service, client_prenom, client_nom, statut, prix, duree_rdv')
       .eq('employee_id', employe.id)   // colonne correcte : employee_id (deux e)
       .order('created_at', { ascending: false })
-      .limit(10)
+      .limit(30)
       .then(({ data }) => {
         setNotifRdvList((data ?? []) as ResaToday[])
         setLastSeenAt(new Date().toISOString())
@@ -277,7 +277,9 @@ export default function EmployePortal() {
       }, async () => {
         if (token) {
           const data = await getGratifications(token)
-          setGratifs((data.gratifications as Gratif[]) ?? [])
+          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+          const recentGratifs = ((data.gratifications as Gratif[]) ?? []).filter((g: Gratif) => g.created_at >= thirtyDaysAgo)
+          setGratifs(recentGratifs)
           setUnreadGratif(prev => prev + 1)
         }
       })
@@ -471,7 +473,9 @@ export default function EmployePortal() {
         setStats(data as Stats)
       } else if (t === 'gratifications') {
         const data = await getGratifications(tok)
-        setGratifs((data.gratifications as Gratif[]) ?? [])
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+        const recentGratifs = ((data.gratifications as Gratif[]) ?? []).filter(g => g.created_at >= thirtyDaysAgo)
+        setGratifs(recentGratifs)
         if ((data.unread_count as number) > 0) {
           await markGratifRead(tok)
           setUnreadGratif(0)
@@ -657,7 +661,8 @@ export default function EmployePortal() {
         {/* Greeting */}
         <View>
           <Text style={{ fontSize: 22, fontWeight: '800', color: '#111827' }}>
-            Bonjour {employe?.prenom} 👋
+            <Text style={{ color: '#F9A310' }}>Bonjour</Text>
+            {` ${employe?.prenom} 👋`}
           </Text>
           <Text style={{ color: '#6b7280', marginTop: 2, textTransform: 'capitalize' }}>{todayLabel}</Text>
         </View>
@@ -1222,9 +1227,11 @@ export default function EmployePortal() {
           </View>
         ) : (
           <Card>
-            <View style={{ gap: 8 }}>
-              {notifRdvList.map(r => <RdvCard key={r.id} r={r} />)}
-            </View>
+            <ScrollView style={{ maxHeight: 420 }} nestedScrollEnabled={true} showsVerticalScrollIndicator={false}>
+              <View style={{ gap: 8 }}>
+                {notifRdvList.map(r => <RdvCard key={r.id} r={r} />)}
+              </View>
+            </ScrollView>
           </Card>
         )}
       </View>
