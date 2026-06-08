@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput, Image,
   StyleSheet, ActivityIndicator, Alert, Platform, KeyboardAvoidingView,
-  Dimensions, AppState, type AppStateStatus,
+  Dimensions, useWindowDimensions, AppState, type AppStateStatus,
 } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -1217,7 +1217,7 @@ export default function EmployePortal() {
   }
 
   function NotificationsRdvTab() {
-    const { height } = Dimensions.get('window')
+    const { height } = useWindowDimensions()
     return (
       <View style={{ flex: 1, padding: 16, gap: 16, paddingBottom: 24 }}>
         <Text style={s.cardTitle}>Notifications RDV</Text>
@@ -1228,7 +1228,7 @@ export default function EmployePortal() {
           </View>
         ) : (
           <Card style={{ flex: 1, width: '100%', paddingHorizontal: 0 }}>
-            <ScrollView style={{ maxHeight: 600, width: '100%' }} nestedScrollEnabled={true} showsVerticalScrollIndicator={false}>
+            <ScrollView style={{ maxHeight: height * 0.72, width: '100%' }} nestedScrollEnabled={true} showsVerticalScrollIndicator={false}>
               <View style={{ gap: 8 }}>
                 {notifRdvList.map(r => <RdvCard key={r.id} r={r} />)}
               </View>
