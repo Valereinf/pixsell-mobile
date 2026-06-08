@@ -347,7 +347,7 @@ export default function DashboardScreen() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>Réservations 7 jours</Text>
             <View style={{ flexDirection: 'row', gap: 12 }}>
-              <LegendDot color="#f9a8d4" label="Sem. précédente" />
+              <LegendDot color="#F9A310" label="Sem. précédente" />
               <LegendDot color="#a855f7" label="Cette semaine" />
             </View>
           </View>
@@ -355,7 +355,7 @@ export default function DashboardScreen() {
             {dayLabels.map((day, i) => (
               <View key={day} style={{ flex: 1, alignItems: 'center', gap: 2 }}>
                 <View style={{ width: '100%', gap: 2, alignItems: 'center', justifyContent: 'flex-end', height: 64, flexDirection: 'row' }}>
-                  <View style={{ width: '45%', height: Math.max(4, (prevWeekData[i] / maxVal) * 60), backgroundColor: '#f9a8d4', borderRadius: 3 }} />
+                  <View style={{ width: '45%', height: Math.max(4, (prevWeekData[i] / maxVal) * 60), backgroundColor: '#F9A310', borderRadius: 3 }} />
                   <View style={{ width: '45%', height: Math.max(4, (weekData[i] / maxVal) * 60), backgroundColor: '#a855f7', borderRadius: 3 }} />
                 </View>
                 <Text style={{ fontSize: 10, color: '#9ca3af' }}>{day}</Text>
