@@ -1218,8 +1218,8 @@ export default function EmployePortal() {
 
   function NotificationsRdvTab() {
     return (
-      <View style={{ paddingTop: 16, paddingBottom: 24, gap: 16 }}>
-        <Text style={{ ...s.cardTitle, paddingHorizontal: 16 }}>Notifications RDV</Text>
+      <View style={{ padding: 16, gap: 16, paddingBottom: 24 }}>
+        <Text style={s.cardTitle}>Notifications RDV</Text>
         {notifRdvList.length === 0 ? (
           <View style={s.emptyState}>
             <Ionicons name="notifications-outline" size={48} color="#c4b5fd" />
@@ -1227,7 +1227,7 @@ export default function EmployePortal() {
           </View>
         ) : (
           <Card style={{ width: '100%', paddingHorizontal: 0 }}>
-            <ScrollView style={{ maxHeight: 420, width: '100%' }} nestedScrollEnabled={true} showsVerticalScrollIndicator={false}>
+            <ScrollView style={{ maxHeight: 700, width: '100%' }} nestedScrollEnabled={true} showsVerticalScrollIndicator={false}>
               <View style={{ gap: 8 }}>
                 {notifRdvList.map(r => <RdvCard key={r.id} r={r} />)}
               </View>
