@@ -74,6 +74,9 @@ export default function DashboardScreen() {
   const [weekData, setWeekData] = useState<number[]>(Array(7).fill(0))
   const [prevWeekData, setPrevWeekData] = useState<number[]>(Array(7).fill(0))
   const [growthRate, setGrowthRate] = useState<number | null>(null)
+  const [tauxRemplissage, setTauxRemplissage] = useState(0)
+  const [minutesOccupees, setMinutesOccupees] = useState(0)
+  const [minutesDispo, setMinutesDispo] = useState(0)
 
   // ── Load company ─────────────────────────────────────────────
   useEffect(() => {
@@ -151,8 +154,62 @@ export default function DashboardScreen() {
     const bad = allWeek.filter(r => r.statut === 'cancelled' || r.statut === 'no_show').length
     setCancelRate(allWeek.length > 0 ? Math.round((bad / allWeek.length) * 100) : 0)
 
-    const rdvToday = (twoWeekResas ?? []).filter(r => r.date_rdv === todayLocal).length
-    setRdvAujourdhui(rdvToday)
+    // ── Taux de remplissage du jour ──────────────────────────
+    const DAY_KEYS = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'] as const
+    const dayKey = DAY_KEYS[new Date().getDay()]
+
+    const { data: employes } = await supabase
+      .from('employes')
+      .select('id')
+      .eq('company_id', companyId)
+      .eq('actif', true)
+
+    const employeIds = (employes ?? []).map(e => e.id)
+    let calcMinutesDispo = 0
+
+    if (employeIds.length > 0) {
+      const { data: horairesData } = await supabase
+        .from('employe_horaires')
+        .select('employe_id, horaires, exceptions')
+        .in('employe_id', employeIds)
+
+      for (const row of horairesData ?? []) {
+        const exceptions: Array<{ debut: string; fin: string }> = row.exceptions ?? []
+        if (exceptions.some(ex => todayLocal >= ex.debut && todayLocal <= ex.fin)) continue
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const daySchedule = (row.horaires as any)?.[dayKey]
+        if (!daySchedule?.actif) continue
+        const [hd, md] = (daySchedule.debut as string).split(':').map(Number)
+        const [hf, mf] = (daySchedule.fin as string).split(':').map(Number)
+        let mins = (hf * 60 + mf) - (hd * 60 + md)
+        for (const pause of daySchedule.pauses ?? []) {
+          const [phd, pmd] = (pause.debut as string).split(':').map(Number)
+          const [phf, pmf] = (pause.fin as string).split(':').map(Number)
+          mins -= (phf * 60 + pmf) - (phd * 60 + pmd)
+        }
+        calcMinutesDispo += Math.max(0, mins)
+      }
+    }
+
+    const { data: resasToday } = await supabase
+      .from('reservations')
+      .select('duree_rdv, statut')
+      .eq('company_id', companyId)
+      .eq('date_rdv', todayLocal)
+      .not('statut', 'in', '(cancelled,no_show)')
+
+    const calcMinutesOccupees = (resasToday ?? []).reduce((total, r) => {
+      return total + (Number(r.duree_rdv) || 0)
+    }, 0)
+
+    const calcTaux = calcMinutesDispo > 0
+      ? Math.min(Math.round((calcMinutesOccupees / calcMinutesDispo) * 100), 100)
+      : 0
+
+    setRdvAujourdhui(resasToday?.length ?? 0)
+    setMinutesDispo(calcMinutesDispo)
+    setMinutesOccupees(calcMinutesOccupees)
+    setTauxRemplissage(calcTaux)
 
     const thisWeek = Array(7).fill(0)
     const prevWeek = Array(7).fill(0)
@@ -239,9 +296,7 @@ export default function DashboardScreen() {
   const ownerInitials = ownerName
     ? ownerName.split(' ').map(w => w[0] ?? '').join('').toUpperCase().slice(0, 2) || (company?.name ?? '??').slice(0, 2).toUpperCase()
     : (company?.name ?? '??').slice(0, 2).toUpperCase()
-  const pct = Math.min(Math.round((rdvAujourdhui / 10) * 100), 100)
-
-  const maxVal = Math.max(...weekData, ...prevWeekData, 1)
+const maxVal = Math.max(...weekData, ...prevWeekData, 1)
   const dayLabels = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di']
 
   if (!company) {
@@ -390,21 +445,21 @@ export default function DashboardScreen() {
           </Text>
         </View>
 
-        {/* ── 7. Cercle progression ── */}
+        {/* ── 7. Taux de Remplissage du jour ── */}
         <View style={[s.card, { alignItems: 'center', marginBottom: 12 }]}>
           <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827', marginBottom: 12 }}>
-            Taux du jour
+            Taux de Remplissage du jour
           </Text>
           <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
-            <ProgressRing pct={pct} size={120} />
+            <ProgressRing pct={tauxRemplissage} size={120} />
             <View style={{ position: 'absolute' }}>
               <Text style={{ fontSize: 22, fontWeight: '800', color: '#7c3aed', textAlign: 'center' }}>
-                {pct}%
+                {tauxRemplissage}%
               </Text>
             </View>
           </View>
           <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 8 }}>
-            {rdvAujourdhui} RDV aujourd'hui
+            {minutesOccupees} min / {minutesDispo} min disponibles
           </Text>
         </View>
 
