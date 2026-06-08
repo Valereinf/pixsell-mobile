@@ -259,8 +259,8 @@ export default function DashboardScreen() {
         {/* ── 1. Header ── */}
         <View style={[s.card, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }]}>
           <View>
-            <Text style={{ fontSize: 18, fontWeight: '700', color: '#F9A310' }}>
-              Bonjour, {ownerName || company.name} 👋
+            <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827' }}>
+              <Text style={{ color: '#F9A310' }}>Bonjour, </Text>{ownerName || company.name} 👋
             </Text>
             <Text style={{ color: '#9ca3af', fontSize: 13, marginTop: 2 }}>
               Bienvenue sur votre tableau de bord
@@ -344,16 +344,16 @@ export default function DashboardScreen() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>Réservations 7 jours</Text>
             <View style={{ flexDirection: 'row', gap: 12 }}>
-              <LegendDot color="#a855f7" label="Cette semaine" />
               <LegendDot color="#f9a8d4" label="Sem. précédente" />
+              <LegendDot color="#a855f7" label="Cette semaine" />
             </View>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 80 }}>
             {dayLabels.map((day, i) => (
               <View key={day} style={{ flex: 1, alignItems: 'center', gap: 2 }}>
                 <View style={{ width: '100%', gap: 2, alignItems: 'center', justifyContent: 'flex-end', height: 64, flexDirection: 'row' }}>
-                  <View style={{ width: '45%', height: Math.max(4, (weekData[i] / maxVal) * 60), backgroundColor: '#a855f7', borderRadius: 3 }} />
                   <View style={{ width: '45%', height: Math.max(4, (prevWeekData[i] / maxVal) * 60), backgroundColor: '#f9a8d4', borderRadius: 3 }} />
+                  <View style={{ width: '45%', height: Math.max(4, (weekData[i] / maxVal) * 60), backgroundColor: '#a855f7', borderRadius: 3 }} />
                 </View>
                 <Text style={{ fontSize: 10, color: '#9ca3af' }}>{day}</Text>
               </View>
@@ -367,7 +367,7 @@ export default function DashboardScreen() {
             TAUX DE CROISSANCE DES RÉSERVATIONS
           </Text>
           <Text style={{ fontSize: 28, fontWeight: '800', color: growthRate !== null && growthRate >= 0 ? '#16a34a' : '#dc2626', marginTop: 4 }}>
-            {growthRate !== null ? (growthRate >= 0 ? '+' : '') + growthRate + '%' : '—'}
+            {growthRate !== null ? (growthRate > 0 ? '+' : '') + growthRate + '%' : '—'}
           </Text>
           <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>
             cette semaine
@@ -375,16 +375,16 @@ export default function DashboardScreen() {
         </View>
 
         {/* ── 6. Taux annulation ── */}
-        <View style={[s.card, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }]}>
-          <View>
-            <Text style={{ fontSize: 11, color: '#9ca3af', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              Taux d'annulation
-            </Text>
-            <Text style={{ fontSize: 28, fontWeight: '800', color: cancelRate > 20 ? '#ef4444' : '#7c3aed', marginTop: 2 }}>
-              {cancelRate}%
-            </Text>
-          </View>
-          <Text style={{ fontSize: 12, color: '#9ca3af' }}>cette semaine</Text>
+        <View style={[s.card, { marginBottom: 12 }]}>
+          <Text style={{ fontSize: 11, color: '#9ca3af', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Taux d'annulation
+          </Text>
+          <Text style={{ fontSize: 28, fontWeight: '800', color: cancelRate > 20 ? '#ef4444' : '#7c3aed', marginTop: 2 }}>
+            {cancelRate}%
+          </Text>
+          <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>
+            cette semaine
+          </Text>
         </View>
 
         {/* ── 7. Cercle progression ── */}
