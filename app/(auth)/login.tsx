@@ -30,7 +30,7 @@ export default function Login() {
         const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
         if (authError || !data.session) throw new Error(authError?.message ?? 'Identifiants incorrects')
         const role = data.session.user.app_metadata?.role ?? 'owner'
-        router.replace(role === 'employee' ? '/(employee)/agenda' : '/(owner)/dashboard')
+        router.replace(role === 'employee' ? '/(employee)/agenda' : '/(owner)/(tabs)/dashboard')
       } else {
         // Employee: appel Netlify function employe-login
         const cleanSlug = slug.toLowerCase().trim()

@@ -6,14 +6,14 @@ import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../../lib/supabase'
 
 const EXTRA_ITEMS = [
-  { route: '/(owner)/employes',      icon: 'people-outline',        label: 'Employés' },
-  { route: '/(owner)/agenda-collab', icon: 'calendar-outline',      label: 'Agenda collab.' },
-  { route: '/(owner)/services',      icon: 'cut-outline',           label: 'Services' },
-  { route: '/(owner)/comptabilite',  icon: 'receipt-outline',       label: 'Comptabilité' },
-  { route: '/(owner)/liste-attente', icon: 'time-outline',          label: "Liste d'attente" },
-  { route: '/(owner)/statistiques',  icon: 'bar-chart-outline',     label: 'Statistiques' },
-  { route: '/(owner)/avis',          icon: 'star-outline',          label: 'Avis clients' },
-  { route: '/(owner)/apparence',     icon: 'color-palette-outline', label: 'Apparence' },
+  { route: '/(owner)/(tabs)/employes',      icon: 'people-outline',        label: 'Employés' },
+  { route: '/(owner)/(tabs)/agenda-collab', icon: 'calendar-outline',      label: 'Agenda collab.' },
+  { route: '/(owner)/(tabs)/services',      icon: 'cut-outline',           label: 'Services' },
+  { route: '/(owner)/(tabs)/comptabilite',  icon: 'receipt-outline',       label: 'Comptabilité' },
+  { route: '/(owner)/(tabs)/liste-attente', icon: 'time-outline',          label: "Liste d'attente" },
+  { route: '/(owner)/(tabs)/statistiques',  icon: 'bar-chart-outline',     label: 'Statistiques' },
+  { route: '/(owner)/(tabs)/avis',          icon: 'star-outline',          label: 'Avis clients' },
+  { route: '/(owner)/(tabs)/apparence',     icon: 'color-palette-outline', label: 'Apparence' },
 ] as const
 
 export default function TabsLayout() {
