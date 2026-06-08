@@ -1228,7 +1228,7 @@ export default function EmployePortal() {
           </View>
         ) : (
           <Card style={{ flex: 1, width: '100%', paddingHorizontal: 0 }}>
-            <ScrollView style={{ maxHeight: height * 0.72, width: '100%' }} nestedScrollEnabled={true} showsVerticalScrollIndicator={false}>
+            <ScrollView style={{ maxHeight: 600, width: '100%' }} nestedScrollEnabled={true} showsVerticalScrollIndicator={false}>
               <View style={{ gap: 8 }}>
                 {notifRdvList.map(r => <RdvCard key={r.id} r={r} />)}
               </View>
