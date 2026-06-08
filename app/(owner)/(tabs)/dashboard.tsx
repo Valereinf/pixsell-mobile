@@ -109,74 +109,76 @@ export default function DashboardScreen() {
     load()
   }, [])
 
+  // ── loadStats — réutilisable (realtime + foreground) ────────
+  const loadStats = async (companyId: string) => {
+    const now = new Date()
+    const dayOfWeek = (now.getDay() + 6) % 7
+    const weekStart = new Date(now)
+    weekStart.setDate(now.getDate() - dayOfWeek)
+    weekStart.setHours(0, 0, 0, 0)
+    const isoWeek = weekStart.toISOString().slice(0, 10)
+
+    const weekStartISO = isoWeek
+    const prevWeekStartISO = addDays(weekStartISO, -7)
+    const todayLocal = new Date().toLocaleDateString('en-CA')
+
+    const [
+      { count: weekResCount },
+      { data: weekResas },
+      { data: twoWeekResas },
+    ] = await Promise.all([
+      supabase.from('reservations')
+        .select('*', { count: 'exact', head: true })
+        .eq('company_id', companyId)
+        .gte('date_rdv', isoWeek),
+      supabase.from('reservations')
+        .select('statut, prix')
+        .eq('company_id', companyId)
+        .gte('date_rdv', isoWeek),
+      supabase.from('reservations')
+        .select('date_rdv, prix, statut')
+        .eq('company_id', companyId)
+        .gte('date_rdv', prevWeekStartISO)
+        .lte('date_rdv', addDays(weekStartISO, 6)),
+    ])
+
+    setResCount(weekResCount ?? 0)
+    const allWeek = weekResas ?? []
+    const rev = allWeek
+      .filter(r => r.statut === 'completed')
+      .reduce((s, r) => s + (Number(r.prix) || 0), 0)
+    setRevenue(rev)
+    const bad = allWeek.filter(r => r.statut === 'cancelled' || r.statut === 'no_show').length
+    setCancelRate(allWeek.length > 0 ? Math.round((bad / allWeek.length) * 100) : 0)
+
+    const rdvToday = (twoWeekResas ?? []).filter(r => r.date_rdv === todayLocal).length
+    setRdvAujourdhui(rdvToday)
+
+    const thisWeek = Array(7).fill(0)
+    const prevWeek = Array(7).fill(0)
+    const wsMs = new Date(weekStartISO + 'T00:00:00').getTime()
+    for (const r of twoWeekResas ?? []) {
+      const diff = Math.round((new Date(r.date_rdv + 'T00:00:00').getTime() - wsMs) / 86_400_000)
+      if (diff >= 0 && diff < 7) thisWeek[diff] += 1
+      else if (diff >= -7 && diff < 0) prevWeek[diff + 7] += 1
+    }
+    setWeekData(thisWeek)
+    setPrevWeekData(prevWeek)
+
+    const thisWeekTotal = thisWeek.reduce((a, b) => a + b, 0)
+    const prevWeekTotal = prevWeek.reduce((a, b) => a + b, 0)
+    const growth = prevWeekTotal > 0
+      ? Math.round(((thisWeekTotal - prevWeekTotal) / prevWeekTotal) * 100)
+      : null
+    setGrowthRate(growth)
+
+    setRecent(await fetchRecent(companyId))
+  }
+
   // ── Load stats ───────────────────────────────────────────────
   useEffect(() => {
-    if (!company) return
-    const load = async () => {
-      const now = new Date()
-      const dayOfWeek = (now.getDay() + 6) % 7
-      const weekStart = new Date(now)
-      weekStart.setDate(now.getDate() - dayOfWeek)
-      weekStart.setHours(0, 0, 0, 0)
-      const isoWeek = weekStart.toISOString().slice(0, 10)
-
-      const weekStartISO = isoWeek
-      const prevWeekStartISO = addDays(weekStartISO, -7)
-      const todayLocal = new Date().toLocaleDateString('en-CA')
-
-      const [
-        { count: weekResCount },
-        { data: weekResas },
-        { data: twoWeekResas },
-      ] = await Promise.all([
-        supabase.from('reservations')
-          .select('*', { count: 'exact', head: true })
-          .eq('company_id', company.id)
-          .gte('date_rdv', isoWeek),
-        supabase.from('reservations')
-          .select('statut, prix')
-          .eq('company_id', company.id)
-          .gte('date_rdv', isoWeek),
-        supabase.from('reservations')
-          .select('date_rdv, prix, statut')
-          .eq('company_id', company.id)
-          .gte('date_rdv', prevWeekStartISO)
-          .lte('date_rdv', addDays(weekStartISO, 6)),
-      ])
-
-      setResCount(weekResCount ?? 0)
-      const allWeek = weekResas ?? []
-      const rev = allWeek
-        .filter(r => r.statut === 'completed')
-        .reduce((s, r) => s + (Number(r.prix) || 0), 0)
-      setRevenue(rev)
-      const bad = allWeek.filter(r => r.statut === 'cancelled' || r.statut === 'no_show').length
-      setCancelRate(allWeek.length > 0 ? Math.round((bad / allWeek.length) * 100) : 0)
-
-      const rdvToday = (twoWeekResas ?? []).filter(r => r.date_rdv === todayLocal).length
-      setRdvAujourdhui(rdvToday)
-
-      const thisWeek = Array(7).fill(0)
-      const prevWeek = Array(7).fill(0)
-      const wsMs = new Date(weekStartISO + 'T00:00:00').getTime()
-      for (const r of twoWeekResas ?? []) {
-        const diff = Math.round((new Date(r.date_rdv + 'T00:00:00').getTime() - wsMs) / 86_400_000)
-        if (diff >= 0 && diff < 7) thisWeek[diff] += 1
-        else if (diff >= -7 && diff < 0) prevWeek[diff + 7] += 1
-      }
-      setWeekData(thisWeek)
-      setPrevWeekData(prevWeek)
-
-      const thisWeekTotal = thisWeek.reduce((a, b) => a + b, 0)
-      const prevWeekTotal = prevWeek.reduce((a, b) => a + b, 0)
-      const growth = prevWeekTotal > 0
-        ? Math.round(((thisWeekTotal - prevWeekTotal) / prevWeekTotal) * 100)
-        : null
-      setGrowthRate(growth)
-
-      setRecent(await fetchRecent(company.id))
-    }
-    load()
+    if (!company?.id) return
+    loadStats(company.id)
   }, [company?.id])
 
   // ── Realtime subscription — activités récentes + reconnexion foreground ──
@@ -194,13 +196,13 @@ export default function DashboardScreen() {
           schema: 'public',
           table: 'reservations',
           filter: `company_id=eq.${company.id}`,
-        }, () => { fetchRecent(company.id).then(setRecent) })
+        }, () => { fetchRecent(company.id).then(setRecent); loadStats(company.id) })
         .on('postgres_changes', {
           event: 'UPDATE',
           schema: 'public',
           table: 'reservations',
           filter: `company_id=eq.${company.id}`,
-        }, () => { fetchRecent(company.id).then(setRecent) })
+        }, () => { fetchRecent(company.id).then(setRecent); loadStats(company.id) })
         .subscribe((status) => {
           console.log('[Realtime] dashboard status:', status)
         })
@@ -227,6 +229,7 @@ export default function DashboardScreen() {
     const handleAppStateChange = async (nextState: AppStateStatus) => {
       if (nextState === 'active' && company?.id) {
         fetchRecent(company.id).then(setRecent)
+        loadStats(company.id)
       }
     }
     const sub = AppState.addEventListener('change', handleAppStateChange)
