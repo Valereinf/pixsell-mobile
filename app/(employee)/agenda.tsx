@@ -174,7 +174,7 @@ function RdvCard({ r }: { r: ResaToday }) {
         {r.service ? <Text style={s.rdvService}>{r.service}</Text> : null}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <StatutBadge statut={r.statut} />
-          {r.prix != null && <Text style={s.rdvPrix}>{Number(r.prix).toFixed(2)} €</Text>}
+          {r.prix != null && <Text style={s.rdvPrix}>{Number(r.prix).toFixed(2)} $</Text>}
         </View>
       </View>
     </View>
@@ -1130,7 +1130,7 @@ export default function EmployePortal() {
           </Card>
           <Card style={{ flex: 1, alignItems: 'center', gap: 4 }}>
             <Text style={{ fontSize: 22, fontWeight: '800', color: '#059669' }}>
-              {stats.revenus_mois.toFixed(0)}€
+              {stats.revenus_mois.toFixed(0)}$
             </Text>
             <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'center' }}>Revenus mois</Text>
           </Card>
@@ -1200,7 +1200,7 @@ export default function EmployePortal() {
                       )}
                       {g.montant > 0 && (
                         <Text style={{ fontSize: 14, fontWeight: '800', color: '#059669' }}>
-                          +{g.montant.toFixed(2)} €
+                          +{g.montant.toFixed(2)} $
                         </Text>
                       )}
                     </View>
@@ -1226,8 +1226,8 @@ export default function EmployePortal() {
             <Text style={s.emptyText}>Aucune réservation récente</Text>
           </View>
         ) : (
-          <Card>
-            <ScrollView style={{ maxHeight: 420 }} nestedScrollEnabled={true} showsVerticalScrollIndicator={false}>
+          <Card style={{ width: '100%', paddingHorizontal: 0 }}>
+            <ScrollView style={{ maxHeight: 420, width: '100%' }} nestedScrollEnabled={true} showsVerticalScrollIndicator={false}>
               <View style={{ gap: 8 }}>
                 {notifRdvList.map(r => <RdvCard key={r.id} r={r} />)}
               </View>
