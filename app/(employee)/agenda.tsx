@@ -316,7 +316,7 @@ export default function EmployePortal() {
             .from('reservations')
             .select('id', { count: 'exact' })
             .eq('employee_id', ((data.employe ?? data) as { id: string }).id)
-            .eq('statut', 'en_attente')
+            .eq('statut', 'pending')
             .order('created_at', { ascending: false })
             .limit(10)
             .then(({ count }) => {
@@ -381,7 +381,7 @@ export default function EmployePortal() {
               .from('reservations')
               .select('id', { count: 'exact' })
               .eq('employee_id', ((data.employe ?? data) as { id: string }).id)
-              .eq('statut', 'en_attente')
+              .eq('statut', 'pending')
               .order('created_at', { ascending: false })
               .limit(10)
               .then(({ count }) => {
