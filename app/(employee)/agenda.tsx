@@ -1218,7 +1218,7 @@ export default function EmployePortal() {
 
   function NotificationsRdvTab() {
     return (
-      <View style={{ padding: 16, gap: 16, paddingBottom: 24 }}>
+      <View style={{ flex: 1, padding: 16, gap: 16, paddingBottom: 24 }}>
         <Text style={s.cardTitle}>Notifications RDV</Text>
         {notifRdvList.length === 0 ? (
           <View style={s.emptyState}>
@@ -1226,8 +1226,8 @@ export default function EmployePortal() {
             <Text style={s.emptyText}>Aucune réservation récente</Text>
           </View>
         ) : (
-          <Card style={{ width: '100%', paddingHorizontal: 0 }}>
-            <ScrollView style={{ maxHeight: 700, width: '100%' }} nestedScrollEnabled={true} showsVerticalScrollIndicator={false}>
+          <Card style={{ flex: 1, width: '100%', paddingHorizontal: 0 }}>
+            <ScrollView style={{ flex: 1, width: '100%' }} nestedScrollEnabled={true} showsVerticalScrollIndicator={false}>
               <View style={{ gap: 8 }}>
                 {notifRdvList.map(r => <RdvCard key={r.id} r={r} />)}
               </View>
