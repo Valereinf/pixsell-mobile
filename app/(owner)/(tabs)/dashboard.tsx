@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, Image,
   StyleSheet, Dimensions, AppState, type AppStateStatus,
@@ -38,7 +38,6 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────
-function todayISO() { return new Date().toISOString().slice(0, 10) }
 function addDays(iso: string, n: number) {
   const d = new Date(iso + 'T00:00:00')
   d.setDate(d.getDate() + n)
@@ -57,7 +56,7 @@ async function fetchRecent(companyId: string): Promise<Resa[]> {
     .select('id, client_prenom, client_nom, service, date_rdv, heure_rdv, statut, prix')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false })
-    .limit(10)
+    .limit(30)
   return (data ?? []) as Resa[]
 }
 
@@ -72,11 +71,9 @@ export default function DashboardScreen() {
   const [cancelRate, setCancelRate] = useState(0)
   const [recent, setRecent] = useState<Resa[]>([])
   const [rdvAujourdhui, setRdvAujourdhui] = useState(0)
-  const [resaDates, setResaDates] = useState<Set<string>>(new Set())
-  const [calYear, setCalYear] = useState(new Date().getFullYear())
-  const [calMonth, setCalMonth] = useState(new Date().getMonth())
   const [weekData, setWeekData] = useState<number[]>(Array(7).fill(0))
   const [prevWeekData, setPrevWeekData] = useState<number[]>(Array(7).fill(0))
+  const [growthRate, setGrowthRate] = useState<number | null>(null)
 
   // ── Load company ─────────────────────────────────────────────
   useEffect(() => {
@@ -116,31 +113,30 @@ export default function DashboardScreen() {
   useEffect(() => {
     if (!company) return
     const load = async () => {
-      const startOfMonth = new Date()
-      startOfMonth.setDate(1)
-      startOfMonth.setHours(0, 0, 0, 0)
-      const isoMonth = startOfMonth.toISOString().slice(0, 10)
-
       const now = new Date()
+      const dayOfWeek = (now.getDay() + 6) % 7
       const weekStart = new Date(now)
-      weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7))
-      const weekStartISO = weekStart.toISOString().slice(0, 10)
+      weekStart.setDate(now.getDate() - dayOfWeek)
+      weekStart.setHours(0, 0, 0, 0)
+      const isoWeek = weekStart.toISOString().slice(0, 10)
+
+      const weekStartISO = isoWeek
       const prevWeekStartISO = addDays(weekStartISO, -7)
       const todayLocal = new Date().toLocaleDateString('en-CA')
 
       const [
-        { count: monthResCount },
-        { data: monthResas },
+        { count: weekResCount },
+        { data: weekResas },
         { data: twoWeekResas },
       ] = await Promise.all([
         supabase.from('reservations')
           .select('*', { count: 'exact', head: true })
           .eq('company_id', company.id)
-          .gte('date_rdv', isoMonth),
+          .gte('date_rdv', isoWeek),
         supabase.from('reservations')
           .select('statut, prix')
           .eq('company_id', company.id)
-          .gte('date_rdv', isoMonth),
+          .gte('date_rdv', isoWeek),
         supabase.from('reservations')
           .select('date_rdv, prix, statut')
           .eq('company_id', company.id)
@@ -148,14 +144,14 @@ export default function DashboardScreen() {
           .lte('date_rdv', addDays(weekStartISO, 6)),
       ])
 
-      setResCount(monthResCount ?? 0)
-      const allMonth = monthResas ?? []
-      const rev = allMonth
+      setResCount(weekResCount ?? 0)
+      const allWeek = weekResas ?? []
+      const rev = allWeek
         .filter(r => r.statut === 'completed')
         .reduce((s, r) => s + (Number(r.prix) || 0), 0)
       setRevenue(rev)
-      const bad = allMonth.filter(r => r.statut === 'cancelled' || r.statut === 'no_show').length
-      setCancelRate(allMonth.length > 0 ? Math.round((bad / allMonth.length) * 100) : 0)
+      const bad = allWeek.filter(r => r.statut === 'cancelled' || r.statut === 'no_show').length
+      setCancelRate(allWeek.length > 0 ? Math.round((bad / allWeek.length) * 100) : 0)
 
       const rdvToday = (twoWeekResas ?? []).filter(r => r.date_rdv === todayLocal).length
       setRdvAujourdhui(rdvToday)
@@ -164,15 +160,20 @@ export default function DashboardScreen() {
       const prevWeek = Array(7).fill(0)
       const wsMs = new Date(weekStartISO + 'T00:00:00').getTime()
       for (const r of twoWeekResas ?? []) {
-        if (r.statut !== 'completed' && r.statut !== 'confirmed') continue
         const diff = Math.round((new Date(r.date_rdv + 'T00:00:00').getTime() - wsMs) / 86_400_000)
-        if (diff >= 0 && diff < 7) thisWeek[diff] += Number(r.prix) || 0
-        else if (diff >= -7 && diff < 0) prevWeek[diff + 7] += Number(r.prix) || 0
+        if (diff >= 0 && diff < 7) thisWeek[diff] += 1
+        else if (diff >= -7 && diff < 0) prevWeek[diff + 7] += 1
       }
       setWeekData(thisWeek)
       setPrevWeekData(prevWeek)
 
-      // Initial fetch des activités récentes
+      const thisWeekTotal = thisWeek.reduce((a, b) => a + b, 0)
+      const prevWeekTotal = prevWeek.reduce((a, b) => a + b, 0)
+      const growth = prevWeekTotal > 0
+        ? Math.round(((thisWeekTotal - prevWeekTotal) / prevWeekTotal) * 100)
+        : null
+      setGrowthRate(growth)
+
       setRecent(await fetchRecent(company.id))
     }
     load()
@@ -232,47 +233,6 @@ export default function DashboardScreen() {
     return () => sub.remove()
   }, [company?.id])
 
-  // ── Calendar dates ───────────────────────────────────────────
-  useEffect(() => {
-    if (!company) return
-    const m = calMonth + 1
-    const y = calYear
-    const nextY = m === 12 ? y + 1 : y
-    const nextM = m === 12 ? 1 : m + 1
-    const from = `${y}-${String(m).padStart(2, '0')}-01`
-    const to = `${nextY}-${String(nextM).padStart(2, '0')}-01`
-    supabase.from('reservations')
-      .select('date_rdv')
-      .eq('company_id', company.id)
-      .gte('date_rdv', from)
-      .lt('date_rdv', to)
-      .then(({ data }) => {
-        setResaDates(new Set((data ?? []).map(r => r.date_rdv as string)))
-      })
-  }, [company?.id, calYear, calMonth])
-
-  // ── Calendar grid ────────────────────────────────────────────
-  const calDays = useMemo(() => {
-    const firstDay = new Date(calYear, calMonth, 1)
-    const lastDay = new Date(calYear, calMonth + 1, 0)
-    const offset = (firstDay.getDay() + 6) % 7
-    const days: (number | null)[] = []
-    for (let i = 0; i < offset; i++) days.push(null)
-    for (let d = 1; d <= lastDay.getDate(); d++) days.push(d)
-    return days
-  }, [calYear, calMonth])
-
-  const prevMonth = () => {
-    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11) }
-    else setCalMonth(m => m - 1)
-  }
-  const nextMonth = () => {
-    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0) }
-    else setCalMonth(m => m + 1)
-  }
-
-  const todayStr = todayISO()
-  const monthLabel = new Date(calYear, calMonth).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
   const ownerInitials = ownerName
     ? ownerName.split(' ').map(w => w[0] ?? '').join('').toUpperCase().slice(0, 2) || (company?.name ?? '??').slice(0, 2).toUpperCase()
     : (company?.name ?? '??').slice(0, 2).toUpperCase()
@@ -291,15 +251,15 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f3ff' }} edges={['top']}>
-<ScrollView
+      <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Header ── */}
+        {/* ── 1. Header ── */}
         <View style={[s.card, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }]}>
           <View>
-            <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827' }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: '#F9A310' }}>
               Bonjour, {ownerName || company.name} 👋
             </Text>
             <Text style={{ color: '#9ca3af', fontSize: 13, marginTop: 2 }}>
@@ -318,7 +278,7 @@ export default function DashboardScreen() {
           )}
         </View>
 
-        {/* ── Activités récentes ── */}
+        {/* ── 2. Activités récentes ── */}
         <View style={[s.card, { marginBottom: 16 }]}>
           <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827', marginBottom: 12 }}>
             Activités récentes
@@ -328,90 +288,61 @@ export default function DashboardScreen() {
               Aucune activité
             </Text>
           ) : (
-            recent.map((r, i) => {
-              const sc = STATUS_COLOR[r.statut] ?? STATUS_COLOR.pending
-              return (
-                <TouchableOpacity
-                  key={r.id}
-                  onPress={() => router.push(`/(owner)/reservation/${r.id}` as Parameters<typeof router.push>[0])}
-                  activeOpacity={0.7}
-                  style={{
-                    flexDirection: 'row', alignItems: 'center', gap: 10,
-                    paddingVertical: 8,
-                    borderBottomWidth: i < recent.length - 1 ? 1 : 0,
-                    borderBottomColor: 'rgba(0,0,0,0.05)',
-                  }}
-                >
-                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ color: 'white', fontSize: 12, fontWeight: '700' }}>
-                      {inits(r.client_prenom, r.client_nom)}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827' }} numberOfLines={1}>
-                      {clientName(r)}
-                    </Text>
-                    <Text style={{ fontSize: 11, color: '#9ca3af' }} numberOfLines={1}>
-                      {r.service || '—'}
-                    </Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontSize: 11, color: '#9ca3af', marginBottom: 2 }}>
-                      {r.date_rdv} {r.heure_rdv?.slice(0, 5)}
-                    </Text>
-                    <View style={{ backgroundColor: sc.bg, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 }}>
-                      <Text style={{ fontSize: 10, fontWeight: '600', color: sc.color }}>
-                        {STATUS_LABEL[r.statut] ?? r.statut}
+            <ScrollView style={{ maxHeight: 420 }} nestedScrollEnabled={true} showsVerticalScrollIndicator={false}>
+              {recent.map((r, i) => {
+                const sc = STATUS_COLOR[r.statut] ?? STATUS_COLOR.pending
+                return (
+                  <TouchableOpacity
+                    key={r.id}
+                    onPress={() => router.push(`/(owner)/reservation/${r.id}` as Parameters<typeof router.push>[0])}
+                    activeOpacity={0.7}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center', gap: 10,
+                      paddingVertical: 8,
+                      borderBottomWidth: i < recent.length - 1 ? 1 : 0,
+                      borderBottomColor: 'rgba(0,0,0,0.05)',
+                    }}
+                  >
+                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ color: 'white', fontSize: 12, fontWeight: '700' }}>
+                        {inits(r.client_prenom, r.client_nom)}
                       </Text>
                     </View>
-                  </View>
-                </TouchableOpacity>
-              )
-            })
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827' }} numberOfLines={1}>
+                        {clientName(r)}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: '#9ca3af' }} numberOfLines={1}>
+                        {r.service || '—'}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={{ fontSize: 11, color: '#9ca3af', marginBottom: 2 }}>
+                        {r.date_rdv} {r.heure_rdv?.slice(0, 5)}
+                      </Text>
+                      <View style={{ backgroundColor: sc.bg, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 }}>
+                        <Text style={{ fontSize: 10, fontWeight: '600', color: sc.color }}>
+                          {STATUS_LABEL[r.statut] ?? r.statut}
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                )
+              })}
+            </ScrollView>
           )}
         </View>
 
-        {/* ── KPI Cards ── */}
+        {/* ── 3. KPI Cards ── */}
         <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-          <KpiCard label="Réservations" value={String(resCount)} sub="ce mois" />
-          <KpiCard label="Revenus" value={`${revenue.toFixed(0)} $`} sub="complétées" />
+          <KpiCard label="Réservations" value={String(resCount)} sub="cette semaine" color="#F9A310" />
+          <KpiCard label="Revenus" value={`${revenue.toFixed(0)} $`} sub="cette semaine" />
         </View>
 
-        {/* ── Taux annulation ── */}
-        <View style={[s.card, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }]}>
-          <View>
-            <Text style={{ fontSize: 11, color: '#9ca3af', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              Taux d'annulation
-            </Text>
-            <Text style={{ fontSize: 28, fontWeight: '800', color: cancelRate > 20 ? '#ef4444' : '#7c3aed', marginTop: 2 }}>
-              {cancelRate}%
-            </Text>
-          </View>
-          <Text style={{ fontSize: 12, color: '#9ca3af' }}>ce mois</Text>
-        </View>
-
-        {/* ── Cercle progression ── */}
-        <View style={[s.card, { alignItems: 'center', marginBottom: 12 }]}>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827', marginBottom: 12 }}>
-            Taux du jour
-          </Text>
-          <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
-            <ProgressRing pct={pct} size={120} />
-            <View style={{ position: 'absolute' }}>
-              <Text style={{ fontSize: 22, fontWeight: '800', color: '#7c3aed', textAlign: 'center' }}>
-                {pct}%
-              </Text>
-            </View>
-          </View>
-          <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 8 }}>
-            {rdvAujourdhui} RDV aujourd'hui
-          </Text>
-        </View>
-
-        {/* ── Graphique revenus ── */}
+        {/* ── 4. Graphique réservations 7 jours ── */}
         <View style={[s.card, { marginBottom: 12 }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>Revenus 7 jours</Text>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>Réservations 7 jours</Text>
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <LegendDot color="#a855f7" label="Cette semaine" />
               <LegendDot color="#f9a8d4" label="Sem. précédente" />
@@ -430,68 +361,63 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* ── Mini calendrier ── */}
-        <View style={[s.card, { marginBottom: 12 }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827', textTransform: 'capitalize' }}>
-              {monthLabel}
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              <TouchableOpacity onPress={prevMonth} style={s.calBtn}>
-                <Ionicons name="chevron-back" size={14} color="#7c3aed" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={nextMonth} style={s.calBtn}>
-                <Ionicons name="chevron-forward" size={14} color="#7c3aed" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={{ flexDirection: 'row', marginBottom: 6 }}>
-            {['Lu','Ma','Me','Je','Ve','Sa','Di'].map(d => (
-              <Text key={d} style={{ flex: 1, fontSize: 11, color: '#9ca3af', fontWeight: '600', textAlign: 'center' }}>{d}</Text>
-            ))}
-          </View>
-
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-            {calDays.map((day, i) => {
-              if (day === null) return <View key={`e-${i}`} style={{ width: `${100/7}%` }} />
-              const iso = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-              const isToday = iso === todayStr
-              const hasRdv = resaDates.has(iso)
-              return (
-                <View key={iso} style={{ width: `${100/7}%`, alignItems: 'center', marginBottom: 4 }}>
-                  <View style={{
-                    width: 28, height: 28, borderRadius: 14,
-                    backgroundColor: isToday ? '#7c3aed' : hasRdv ? 'rgba(168,85,247,0.12)' : 'transparent',
-                    alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <Text style={{
-                      fontSize: 12,
-                      fontWeight: isToday ? '700' : hasRdv ? '600' : '400',
-                      color: isToday ? 'white' : hasRdv ? '#7c3aed' : '#4b5563',
-                    }}>
-                      {day}
-                    </Text>
-                  </View>
-                </View>
-              )
-            })}
-          </View>
+        {/* ── 5. Taux de croissance ── */}
+        <View style={[s.card, { marginTop: 8, marginBottom: 12 }]}>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            TAUX DE CROISSANCE DES RÉSERVATIONS
+          </Text>
+          <Text style={{ fontSize: 28, fontWeight: '800', color: growthRate !== null && growthRate >= 0 ? '#16a34a' : '#dc2626', marginTop: 4 }}>
+            {growthRate !== null ? (growthRate >= 0 ? '+' : '') + growthRate + '%' : '—'}
+          </Text>
+          <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>
+            cette semaine
+          </Text>
         </View>
 
-        {/* ── Accès rapide ── */}
+        {/* ── 6. Taux annulation ── */}
+        <View style={[s.card, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }]}>
+          <View>
+            <Text style={{ fontSize: 11, color: '#9ca3af', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Taux d'annulation
+            </Text>
+            <Text style={{ fontSize: 28, fontWeight: '800', color: cancelRate > 20 ? '#ef4444' : '#7c3aed', marginTop: 2 }}>
+              {cancelRate}%
+            </Text>
+          </View>
+          <Text style={{ fontSize: 12, color: '#9ca3af' }}>cette semaine</Text>
+        </View>
+
+        {/* ── 7. Cercle progression ── */}
+        <View style={[s.card, { alignItems: 'center', marginBottom: 12 }]}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827', marginBottom: 12 }}>
+            Taux du jour
+          </Text>
+          <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
+            <ProgressRing pct={pct} size={120} />
+            <View style={{ position: 'absolute' }}>
+              <Text style={{ fontSize: 22, fontWeight: '800', color: '#7c3aed', textAlign: 'center' }}>
+                {pct}%
+              </Text>
+            </View>
+          </View>
+          <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 8 }}>
+            {rdvAujourdhui} RDV aujourd'hui
+          </Text>
+        </View>
+
+        {/* ── 8. Accès rapide ── */}
         <View style={[s.card, { marginTop: 0 }]}>
           <Text style={{ fontSize: 12, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>
             Accès rapide
           </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {[
-              { icon: 'calendar-outline',  label: 'Réservations', route: '/(owner)/reservations' },
-              { icon: 'people-outline',    label: 'Clients',       route: '/(owner)/clients' },
-              { icon: 'person-outline',    label: 'Employés',      route: '/(owner)/employes' },
-              { icon: 'cut-outline',       label: 'Services',      route: '/(owner)/services' },
-              { icon: 'megaphone-outline', label: 'Marketing',     route: '/(owner)/marketing' },
-              { icon: 'receipt-outline',   label: 'Comptabilité',  route: '/(owner)/comptabilite' },
+              { icon: 'calendar-outline',  label: 'Agenda Collab.', route: '/(owner)/(tabs)/agenda-collab' },
+              { icon: 'receipt-outline',   label: 'Comptabilité',   route: '/(owner)/(tabs)/comptabilite' },
+              { icon: 'person-outline',    label: 'Employés',       route: '/(owner)/(tabs)/employes' },
+              { icon: 'cut-outline',       label: 'Services',       route: '/(owner)/(tabs)/services' },
+              { icon: 'bar-chart-outline', label: 'Statistiques',   route: '/(owner)/(tabs)/statistiques' },
+              { icon: 'star-outline',      label: 'Avis clients',   route: '/(owner)/(tabs)/avis' },
             ].map(({ icon, label, route }) => (
               <TouchableOpacity
                 key={route}
@@ -512,9 +438,9 @@ export default function DashboardScreen() {
 
 // ── Sub-components ───────────────────────────────────────────────
 
-function KpiCard({ label, value, sub }: { label: string; value: string; sub: string }) {
+function KpiCard({ label, value, sub, color = '#7c3aed' }: { label: string; value: string; sub: string; color?: string }) {
   return (
-    <View style={{ flex: 1, backgroundColor: '#7c3aed', borderRadius: 20, padding: 18, shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 8 }}>
+    <View style={{ flex: 1, backgroundColor: color, borderRadius: 20, padding: 18, shadowColor: color, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 8 }}>
       <Text style={{ fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, color: 'rgba(255,255,255,0.8)', marginBottom: 8 }}>
         {label}
       </Text>
@@ -568,10 +494,5 @@ const s = StyleSheet.create({
     elevation: 4,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.8)',
-  },
-  calBtn: {
-    width: 26, height: 26, borderRadius: 13,
-    backgroundColor: 'rgba(124,58,237,0.1)',
-    alignItems: 'center', justifyContent: 'center',
   },
 })
