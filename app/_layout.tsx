@@ -175,7 +175,7 @@ export default function RootLayout() {
             ],
           }}>
             <Image
-              source={require('../assets/icon-source.png')}
+              source={require('../assets/android-icon-foreground.png')}
               style={{ width: 48, height: 48 }}
               resizeMode="contain"
             />
