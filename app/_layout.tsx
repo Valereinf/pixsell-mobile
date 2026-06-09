@@ -18,8 +18,8 @@ export default function RootLayout() {
   const [letterCount, setLetterCount]   = useState(0)
 
   const birdScale      = useRef(new Animated.Value(0.15)).current
-  const birdTranslateX = useRef(new Animated.Value(-150)).current
-  const birdTranslateY = useRef(new Animated.Value(150)).current
+  const birdTranslateX = useRef(new Animated.Value(-170)).current
+  const birdTranslateY = useRef(new Animated.Value(110)).current
   const splashSlide    = useRef(new Animated.Value(0)).current
   const loginSlide     = useRef(new Animated.Value(width)).current
 
@@ -176,11 +176,11 @@ export default function RootLayout() {
           }}>
             <Image
               source={require('../assets/android-icon-foreground.png')}
-              style={{ width: 48, height: 48 }}
+              style={{ width: 80, height: 80 }}
               resizeMode="contain"
             />
             <View style={{ marginLeft: 8 }}>
-              <Text style={{ fontSize: 36, fontWeight: '800' }}>
+              <Text style={{ fontSize: 52, fontWeight: '800' }}>
                 <Text style={{ color: '#4D15CD' }}>{purpleText}</Text>
                 <Text style={{ color: '#F79B12' }}>{orangeText}</Text>
               </Text>
