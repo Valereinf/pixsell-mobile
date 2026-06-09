@@ -238,6 +238,12 @@ export default function AgendaCollabScreen() {
   const [gratMsg, setGratMsg]     = useState('')
   const [gratSaving, setGratSaving] = useState(false)
 
+  // Sélection multiple calendrier
+  const [selectedCells, setSelectedCells] = useState<{ empId: string; date: string }[]>([])
+  const [selectionEmpId, setSelectionEmpId] = useState<string | null>(null)
+  const [multiPopup, setMultiPopup] = useState(false)
+  const [multiPopupNote, setMultiPopupNote] = useState('')
+
   // Approbation/refus modals
   const [approuverTarget, setApprouverTarget] = useState<DemandeRow | null>(null)
   const [refuserTarget, setRefuserTarget]     = useState<DemandeRow | null>(null)
@@ -730,13 +736,34 @@ export default function AgendaCollabScreen() {
                         {weekDates.map(date => {
                           const statut = statutsMap[emp.id]?.[date] ?? null
                           const cfg = statut ? STATUS_CONFIG[statut] : null
+                          const isSelected = selectedCells.some(c => c.empId === emp.id && c.date === date)
                           return (
                             <TouchableOpacity
                               key={date}
                               style={{ width: 56, paddingHorizontal: 3, paddingVertical: 4 }}
-                              onPress={() => openPopup(emp.id, date, statut)}
+                              onPress={() => {
+                                if (selectedCells.length === 0) {
+                                  setSelectionEmpId(emp.id)
+                                  setSelectedCells([{ empId: emp.id, date }])
+                                  return
+                                }
+                                if (selectionEmpId === emp.id) {
+                                  const exists = selectedCells.some(c => c.date === date)
+                                  if (exists) {
+                                    const newSel = selectedCells.filter(c => c.date !== date)
+                                    setSelectedCells(newSel)
+                                    if (newSel.length === 0) setSelectionEmpId(null)
+                                  } else {
+                                    setSelectedCells([...selectedCells, { empId: emp.id, date }])
+                                  }
+                                  return
+                                }
+                                setSelectedCells([])
+                                setSelectionEmpId(null)
+                                openPopup(emp.id, date, statut)
+                              }}
                             >
-                              <View style={[s.cell, cfg ? { backgroundColor: cfg.bg } : s.cellEmpty]}>
+                              <View style={[s.cell, cfg ? { backgroundColor: cfg.bg } : s.cellEmpty, isSelected && { borderWidth: 2, borderColor: '#7c3aed', backgroundColor: 'rgba(124,58,237,0.08)' }]}>
                                 {cfg ? (
                                   <>
                                     <Text style={{ fontSize: 14 }}>{cfg.emoji}</Text>
@@ -767,6 +794,30 @@ export default function AgendaCollabScreen() {
                   </View>
                 </View>
               </ScrollView>
+
+              {selectedCells.length > 0 && (
+                <View style={{
+                  position: 'absolute', bottom: 24, left: 16, right: 16,
+                  backgroundColor: '#1f2937', borderRadius: 16,
+                  padding: 12, flexDirection: 'row', alignItems: 'center',
+                  gap: 8, shadowColor: '#000', shadowOpacity: 0.3,
+                  shadowRadius: 12, elevation: 8,
+                }}>
+                  <Text style={{ color: 'white', fontSize: 13, fontWeight: '600', flex: 1 }}>
+                    {selectedCells.length} jour{selectedCells.length > 1 ? 's' : ''} sélectionné{selectedCells.length > 1 ? 's' : ''}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => { setMultiPopup(true); setMultiPopupNote('') }}
+                    style={{ backgroundColor: '#7c3aed', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 }}>
+                    <Text style={{ color: 'white', fontWeight: '600', fontSize: 13 }}>Appliquer</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => { setSelectedCells([]); setSelectionEmpId(null) }}
+                    style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 }}>
+                    <Text style={{ color: 'white', fontSize: 13 }}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           )}
 
@@ -1111,6 +1162,63 @@ export default function AgendaCollabScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+      {/* ── Modal Multi-sélection ── */}
+      <Modal visible={multiPopup} transparent animationType="slide" onRequestClose={() => setMultiPopup(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <Text style={{ fontWeight: '700', fontSize: 15 }}>
+                Appliquer à {selectedCells.length} jour{selectedCells.length > 1 ? 's' : ''}
+              </Text>
+              <TouchableOpacity onPress={() => setMultiPopup(false)}>
+                <Text style={{ fontSize: 18, color: '#9ca3af' }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              {(Object.entries(STATUS_CONFIG) as [StatutJour, typeof STATUS_CONFIG[StatutJour]][]).map(([sk, cfg]) => (
+                <TouchableOpacity
+                  key={sk}
+                  onPress={async () => {
+                    for (const cell of selectedCells) {
+                      await setStatut(cell.empId, cell.date, sk, multiPopupNote)
+                    }
+                    await loadStatuts()
+                    setMultiPopup(false)
+                    setSelectedCells([])
+                    setSelectionEmpId(null)
+                    setMultiPopupNote('')
+                  }}
+                  style={{ width: '47%', padding: 10, borderRadius: 10, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: 'white', alignItems: 'center', flexDirection: 'row', gap: 6, justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 16 }}>{cfg.emoji}</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151' }}>{cfg.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TextInput
+              placeholder="Note optionnelle..."
+              value={multiPopupNote}
+              onChangeText={setMultiPopupNote}
+              style={{ borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 10, fontSize: 13, marginBottom: 8 }}
+            />
+
+            <TouchableOpacity
+              onPress={async () => {
+                for (const cell of selectedCells) {
+                  await setStatut(cell.empId, cell.date, null, '')
+                }
+                await loadStatuts()
+                setMultiPopup(false)
+                setSelectedCells([])
+                setSelectionEmpId(null)
+              }}
+              style={{ padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center' }}>
+              <Text style={{ color: '#dc2626', fontWeight: '600', fontSize: 13 }}>Effacer le statut</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   )
