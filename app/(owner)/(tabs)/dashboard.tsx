@@ -124,6 +124,9 @@ export default function DashboardScreen() {
     const weekStartISO = isoWeek
     const prevWeekStartISO = addDays(weekStartISO, -7)
     const todayLocal = new Date().toLocaleDateString('en-CA')
+    const isoWeekEnd = new Date(weekStart)
+    isoWeekEnd.setDate(weekStart.getDate() + 7)
+    const isoWeekEndStr = isoWeekEnd.toISOString().slice(0, 10)
 
     const [
       { count: weekResCount },
@@ -133,7 +136,8 @@ export default function DashboardScreen() {
       supabase.from('reservations')
         .select('*', { count: 'exact', head: true })
         .eq('company_id', companyId)
-        .gte('date_rdv', isoWeek),
+        .gte('date_rdv', isoWeek)
+        .lt('date_rdv', isoWeekEndStr),
       supabase.from('reservations')
         .select('statut, prix')
         .eq('company_id', companyId)
