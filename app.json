@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "splash": {
-      "backgroundColor": "#000099",
+      "backgroundColor": "#ffffff",
       "resizeMode": "contain"
     },
     "platforms": [
@@ -20,7 +20,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.pixsell.mobile",
-      "backgroundColor": "#000099",
+      "backgroundColor": "#ffffff",
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
@@ -29,8 +29,8 @@
       ]
     },
     "androidStatusBar": {
-      "barStyle": "light-content",
-      "backgroundColor": "#000099",
+      "barStyle": "dark-content",
+      "backgroundColor": "#ffffff",
       "translucent": false
     },
     "ios": {
