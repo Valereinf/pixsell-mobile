@@ -662,7 +662,7 @@ export default function EmployePortal() {
         <View>
           <Text style={{ fontSize: 22, fontWeight: '800', color: '#111827' }}>
             <Text style={{ color: '#F9A310' }}>Bonjour</Text>
-            {` ${employe?.prenom} 👋`}
+            {` ${employe?.prenom ?? employe?.nom ?? ''} 👋`}
           </Text>
           <Text style={{ color: '#6b7280', marginTop: 2, textTransform: 'capitalize' }}>{todayLabel}</Text>
         </View>
