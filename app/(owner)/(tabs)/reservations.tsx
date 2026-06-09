@@ -59,6 +59,18 @@ interface EmployeRow {
 type HoraireDay = { ouvert: boolean; debut: string; fin: string }
 type Company = { id: string; horaires?: Record<string, HoraireDay> | null }
 
+// ── Helpers ──────────────────────────────────────────────────────
+function isInNoShowWindow(dateRdv: string, heureRdv: string, dureeMinutes: number | null): boolean {
+  const now = new Date()
+  const [h, m] = heureRdv.split(':').map(Number)
+  const rdvDate = new Date(dateRdv + 'T00:00:00')
+  rdvDate.setHours(h, m, 0, 0)
+  const duree = dureeMinutes ?? 60
+  const finService = new Date(rdvDate.getTime() + duree * 60 * 1000)
+  const fenetreNoShow = new Date(finService.getTime() + 60 * 60 * 1000)
+  return now >= rdvDate && now <= fenetreNoShow
+}
+
 // ── Constants ────────────────────────────────────────────────────
 const STATUS: Record<Statut, { label: string; bg: string; color: string }> = {
   pending:   { label: 'Confirmé',   bg: 'rgba(16,185,129,0.15)',  color: '#059669' },
@@ -505,13 +517,15 @@ function DetailModal({ row, companyId, onClose, onStatusChange, onUpdate }: Deta
                       ) : null}
                       {isActive ? (
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                          <TouchableOpacity
-                            onPress={() => onStatusChange(row.id, 'no_show')}
-                            style={[s.actionSm, { backgroundColor: 'rgba(249,115,22,0.1)' }]}
-                          >
-                            <Ionicons name="person-remove-outline" size={14} color="#ea580c" />
-                            <Text style={{ color: '#ea580c', fontWeight: '500', fontSize: 13 }}>Absent</Text>
-                          </TouchableOpacity>
+                          {isInNoShowWindow(row.date_rdv, row.heure_rdv, row.duree_rdv) ? (
+                            <TouchableOpacity
+                              onPress={() => onStatusChange(row.id, 'no_show')}
+                              style={[s.actionSm, { backgroundColor: 'rgba(249,115,22,0.1)' }]}
+                            >
+                              <Ionicons name="person-remove-outline" size={14} color="#ea580c" />
+                              <Text style={{ color: '#ea580c', fontWeight: '500', fontSize: 13 }}>Absent</Text>
+                            </TouchableOpacity>
+                          ) : null}
                           <TouchableOpacity
                             onPress={() => onStatusChange(row.id, 'cancelled')}
                             style={[s.actionSm, { backgroundColor: 'rgba(239,68,68,0.1)' }]}
