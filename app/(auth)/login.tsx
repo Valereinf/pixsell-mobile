@@ -66,8 +66,8 @@ export default function Login() {
 
           {/* Logo */}
           <Image
-            source={require('../../assets/logo-pixsell.png')}
-            style={{ width: 220, height: 70, resizeMode: 'contain', marginBottom: 8 }}
+            source={require('../../assets/pixsell_new_logo.png')}
+            style={{ width: 180, height: 47, resizeMode: 'contain', marginBottom: 8 }}
           />
 
           <Text style={styles.title}>Connexion</Text>
