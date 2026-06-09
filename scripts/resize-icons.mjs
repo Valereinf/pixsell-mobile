@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ASSETS = join(__dirname, '..', 'assets')
-const SRC_BIRD = join(ASSETS, 'icon-source.png')
+const SRC_BIRD = join(ASSETS, 'android-icon-foreground.png')
 const SRC_LOGO = join(ASSETS, 'pixsell_new_logo.png')
 
 // Pixels where max(R,G,B) < threshold become transparent (removes black bg)
