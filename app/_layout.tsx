@@ -80,13 +80,13 @@ export default function RootLayout() {
 
   if (!splashDone) {
     return (
-      <Animated.View style={[styles.splash, { transform: [{ translateX: slideAnim }] }]}>
+      <Animated.View style={[{ flex: 1, backgroundColor: '#ffffff' }, { transform: [{ translateX: slideAnim }] }]}>
         {!appReady ? null : (
           <LottieView
             source={require('../assets/animations/splash.json')}
             autoPlay
             loop={false}
-            style={{ width: 390, height: 390 }}
+            style={{ width: '100%', height: '100%' }}
             onAnimationFinish={() => {
               Animated.timing(slideAnim, {
                 toValue: -width,
