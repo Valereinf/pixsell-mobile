@@ -12,16 +12,22 @@ const { width, height } = Dimensions.get('window')
 
 export default function RootLayout() {
   const router = useRouter()
-  const [appReady, setAppReady]         = useState(false)
-  const [splashDone, setSplashDone]     = useState(false)
+  const [appReady, setAppReady]               = useState(false)
+  const [splashDone, setSplashDone]           = useState(false)
   const [isTransitioning, setIsTransitioning] = useState(false)
-  const [letterCount, setLetterCount]   = useState(0)
 
-  const birdScale      = useRef(new Animated.Value(0.15)).current
-  const birdTranslateX = useRef(new Animated.Value(-170)).current
-  const birdTranslateY = useRef(new Animated.Value(110)).current
-  const splashSlide    = useRef(new Animated.Value(0)).current
-  const loginSlide     = useRef(new Animated.Value(width)).current
+  // Bird
+  const birdTranslateX = useRef(new Animated.Value(-width * 0.6)).current
+  const birdTranslateY = useRef(new Animated.Value(0)).current
+  const birdScale      = useRef(new Animated.Value(0.3)).current
+
+  // Text
+  const textOpacity    = useRef(new Animated.Value(0)).current
+  const textTranslateX = useRef(new Animated.Value(20)).current
+
+  // Slide transition
+  const splashSlide = useRef(new Animated.Value(0)).current
+  const loginSlide  = useRef(new Animated.Value(width)).current
 
   useEffect(() => {
     setTimeout(() => setAppReady(true), 300)
@@ -78,48 +84,71 @@ export default function RootLayout() {
     }
   }, [])
 
-  // ── Splash animation ───────────────────────────────────────────────────────
+  // ── Splash animation ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!appReady) return
     SplashScreen.hideAsync()
 
-    // 1+2. Oiseau vole du bas-gauche vers le centre (900ms, ease-out)
+    // Phase 1→2 : oiseau vole de gauche à droite avec arc (0→900ms)
     Animated.parallel([
-      Animated.timing(birdScale, {
-        toValue: 1.0,
-        duration: 900,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
+      // Vol horizontal
       Animated.timing(birdTranslateX, {
-        toValue: 0,
+        toValue: width * 0.7,
         duration: 900,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
-      Animated.timing(birdTranslateY, {
-        toValue: -20,
+      // Grossit pendant le vol
+      Animated.timing(birdScale, {
+        toValue: 1.2,
         duration: 900,
-        easing: Easing.out(Easing.cubic),
+        easing: Easing.out(Easing.quad),
         useNativeDriver: true,
       }),
-    ]).start()
+      // Arc vertical : monte puis redescend
+      Animated.sequence([
+        Animated.timing(birdTranslateY, {
+          toValue: -40,
+          duration: 450,
+          easing: Easing.out(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(birdTranslateY, {
+          toValue: 0,
+          duration: 450,
+          easing: Easing.in(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start(() => {
+      // Phase 4 : oiseau sort par la droite (900→1100ms)
+      Animated.timing(birdTranslateX, {
+        toValue: width * 1.2,
+        duration: 200,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }).start()
+    })
 
-    // 3. Texte lettre par lettre après 300ms de délai, toutes les 80ms
-    let letterInterval: ReturnType<typeof setInterval> | null = null
-    const letterTimeout = setTimeout(() => {
-      letterInterval = setInterval(() => {
-        setLetterCount(prev => {
-          if (prev >= 7) {
-            if (letterInterval) clearInterval(letterInterval)
-            return prev
-          }
-          return prev + 1
-        })
-      }, 80)
-    }, 300)
+    // Phase 3 : texte se dévoile à t=200ms pendant 600ms
+    const textTimeout = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(textOpacity, {
+          toValue: 1,
+          duration: 600,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(textTranslateX, {
+          toValue: 0,
+          duration: 600,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start()
+    }, 200)
 
-    // 4+5. Après 900ms vol + 1000ms pause → slide transition (400ms)
+    // Phase 5→6 : pause 500ms puis slide transition à t=1600ms
     const slideTimeout = setTimeout(() => {
       setIsTransitioning(true)
       Animated.parallel([
@@ -138,23 +167,18 @@ export default function RootLayout() {
           useNativeDriver: true,
         }),
       ]).start(() => setSplashDone(true))
-    }, 1900)
+    }, 1600)
 
     return () => {
-      clearTimeout(letterTimeout)
+      clearTimeout(textTimeout)
       clearTimeout(slideTimeout)
-      if (letterInterval) clearInterval(letterInterval)
     }
   }, [appReady])
-
-  // Découpage du texte pour la coloration
-  const purpleText = 'Pixsell'.slice(0, Math.min(letterCount, 3))  // "Pix"
-  const orangeText = 'Pixsell'.slice(3, letterCount)               // "sell"
 
   if (!splashDone) {
     return (
       <View style={styles.container}>
-        {/* Page Connexion proxy (fond #f5f3ff) glissant depuis la droite */}
+        {/* Page Connexion proxy glissant depuis la droite */}
         {isTransitioning && (
           <Animated.View style={[
             StyleSheet.absoluteFill,
@@ -164,10 +188,30 @@ export default function RootLayout() {
 
         {/* Écran splash glissant vers la gauche */}
         <Animated.View style={[styles.splash, { transform: [{ translateX: splashSlide }] }]}>
-          {/* Logo : oiseau + texte, centré, animé depuis le bas-gauche */}
+
+          {/* Texte "Pixsell" centré — se dévoile pendant le vol */}
           <Animated.View style={{
-            flexDirection: 'row',
+            position: 'absolute',
+            top: height * 0.45,
+            left: 0,
+            right: 0,
             alignItems: 'center',
+            opacity: textOpacity,
+            transform: [{ translateX: textTranslateX }],
+          }}>
+            <Text style={{ fontSize: 64, fontWeight: '800' }}>
+              <Text style={{ color: '#4D15CD' }}>Pix</Text>
+              <Text style={{ color: '#F79B12' }}>sell</Text>
+            </Text>
+          </Animated.View>
+
+          {/* Oiseau — survole l'écran de gauche à droite */}
+          <Animated.View style={{
+            position: 'absolute',
+            top: height * 0.35,
+            left: 0,
+            width: 100,
+            height: 100,
             transform: [
               { translateX: birdTranslateX },
               { translateY: birdTranslateY },
@@ -176,16 +220,11 @@ export default function RootLayout() {
           }}>
             <Image
               source={require('../assets/android-icon-foreground.png')}
-              style={{ width: 80, height: 80 }}
+              style={{ width: 100, height: 100 }}
               resizeMode="contain"
             />
-            <View style={{ marginLeft: 8 }}>
-              <Text style={{ fontSize: 52, fontWeight: '800' }}>
-                <Text style={{ color: '#4D15CD' }}>{purpleText}</Text>
-                <Text style={{ color: '#F79B12' }}>{orangeText}</Text>
-              </Text>
-            </View>
           </Animated.View>
+
         </Animated.View>
       </View>
     )
@@ -207,7 +246,5 @@ const styles = StyleSheet.create({
   splash: {
     ...StyleSheet.absoluteFill,
     backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 })
