@@ -61,7 +61,7 @@ type Company = { id: string; horaires?: Record<string, HoraireDay> | null }
 
 // ── Constants ────────────────────────────────────────────────────
 const STATUS: Record<Statut, { label: string; bg: string; color: string }> = {
-  pending:   { label: 'En attente', bg: 'rgba(245,158,11,0.15)',  color: '#d97706' },
+  pending:   { label: 'Confirmé',   bg: 'rgba(16,185,129,0.15)',  color: '#059669' },
   confirmed: { label: 'Confirmé',   bg: 'rgba(16,185,129,0.15)',  color: '#059669' },
   completed: { label: 'Passé',      bg: 'rgba(107,114,128,0.15)', color: '#6b7280' },
   cancelled: { label: 'Annulé',     bg: 'rgba(239,68,68,0.15)',   color: '#dc2626' },
@@ -505,15 +505,6 @@ function DetailModal({ row, companyId, onClose, onStatusChange, onUpdate }: Deta
                       ) : null}
                       {isActive ? (
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                          {row.statut === 'pending' ? (
-                            <TouchableOpacity
-                              onPress={() => onStatusChange(row.id, 'confirmed')}
-                              style={[s.actionSm, { backgroundColor: 'rgba(16,185,129,0.1)' }]}
-                            >
-                              <Ionicons name="checkmark" size={14} color="#059669" />
-                              <Text style={{ color: '#059669', fontWeight: '500', fontSize: 13 }}>Confirmer</Text>
-                            </TouchableOpacity>
-                          ) : null}
                           <TouchableOpacity
                             onPress={() => onStatusChange(row.id, 'no_show')}
                             style={[s.actionSm, { backgroundColor: 'rgba(249,115,22,0.1)' }]}
@@ -1116,11 +1107,6 @@ export default function ReservationsScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     {r.prix != null ? (
                       <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827' }}>{r.prix} $</Text>
-                    ) : null}
-                    {r.statut === 'pending' ? (
-                      <TouchableOpacity onPress={() => updateStatut(r.id, 'confirmed')} style={[s.inlineBtn, { backgroundColor: 'rgba(16,185,129,0.1)' }]}>
-                        <Ionicons name="checkmark" size={14} color="#059669" />
-                      </TouchableOpacity>
                     ) : null}
                     {isActive ? (
                       <>

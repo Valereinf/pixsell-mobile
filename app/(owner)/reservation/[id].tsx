@@ -33,7 +33,7 @@ interface HistoResa {
 
 // ── Constants ─────────────────────────────────────────────────────
 const STATUS_COLOR: Record<string, { bg: string; color: string; label: string }> = {
-  pending:   { bg: 'rgba(245,158,11,0.15)',  color: '#d97706', label: 'En attente' },
+  pending:   { bg: 'rgba(16,185,129,0.15)',  color: '#059669', label: 'Confirmé'   },
   confirmed: { bg: 'rgba(16,185,129,0.15)',  color: '#059669', label: 'Confirmé'   },
   completed: { bg: 'rgba(107,114,128,0.15)', color: '#6b7280', label: 'Passé'      },
   cancelled: { bg: 'rgba(239,68,68,0.15)',   color: '#dc2626', label: 'Annulé'     },

@@ -73,7 +73,7 @@ interface RawAbsence {
 
 // ── Status config ────────────────────────────────────────────────
 const ST: Record<Statut, { label: string; bg: string; color: string }> = {
-  pending:   { label: 'En attente', bg: 'rgba(245,158,11,0.15)',  color: '#d97706' },
+  pending:   { label: 'Confirmé',   bg: 'rgba(16,185,129,0.15)',  color: '#059669' },
   confirmed: { label: 'Confirmé',   bg: 'rgba(16,185,129,0.15)',  color: '#059669' },
   completed: { label: 'Passé',      bg: 'rgba(107,114,128,0.15)', color: '#6b7280' },
   cancelled: { label: 'Annulé',     bg: 'rgba(239,68,68,0.15)',   color: '#dc2626' },
@@ -702,11 +702,6 @@ export default function CalendrierScreen() {
               </TouchableOpacity>
 
               <View style={{ gap: 8 }}>
-                {detailResa.statut === 'pending' && (
-                  <TouchableOpacity onPress={() => handleUpdateStatut(detailResa.id, 'confirmed')} disabled={updating} style={[s.actionBtn, { backgroundColor: 'rgba(16,185,129,0.1)', borderColor: 'rgba(16,185,129,0.3)' }]}>
-                    <Text style={{ color: '#059669', fontWeight: '600' }}>Confirmer</Text>
-                  </TouchableOpacity>
-                )}
                 {(detailResa.statut === 'pending' || detailResa.statut === 'confirmed') && (<>
                   <TouchableOpacity onPress={() => handleUpdateStatut(detailResa.id, 'completed')} disabled={updating} style={[s.actionBtn, { backgroundColor: 'rgba(107,114,128,0.1)', borderColor: '#e5e7eb' }]}>
                     <Text style={{ color: '#6b7280', fontWeight: '600' }}>Marquer passé</Text>

@@ -68,7 +68,7 @@ const TYPE_DOC_LABELS: Record<string, string> = {
 }
 
 const STATUT_RDV_CFG: Record<string, { label: string; bg: string; color: string }> = {
-  pending:   { label: 'En attente', bg: 'rgba(245,158,11,0.12)',  color: '#d97706' },
+  pending:   { label: 'Confirmé',   bg: 'rgba(16,185,129,0.12)',  color: '#059669' },
   confirmed: { label: 'Confirmé',   bg: 'rgba(16,185,129,0.12)',  color: '#059669' },
   completed: { label: 'Complété',   bg: 'rgba(59,130,246,0.12)',  color: '#1d4ed8' },
   cancelled: { label: 'Annulé',     bg: 'rgba(239,68,68,0.12)',   color: '#dc2626' },

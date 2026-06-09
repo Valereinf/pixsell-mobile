@@ -26,14 +26,14 @@ interface Resa {
 
 // ── Constants ────────────────────────────────────────────────────
 const STATUS_COLOR: Record<string, { bg: string; color: string }> = {
-  pending:   { bg: 'rgba(245,158,11,0.15)',  color: '#d97706' },
+  pending:   { bg: 'rgba(16,185,129,0.15)',  color: '#059669' },
   confirmed: { bg: 'rgba(16,185,129,0.15)',  color: '#059669' },
   completed: { bg: 'rgba(107,114,128,0.15)', color: '#6b7280' },
   cancelled: { bg: 'rgba(239,68,68,0.15)',   color: '#dc2626' },
   no_show:   { bg: 'rgba(249,115,22,0.15)',  color: '#ea580c' },
 }
 const STATUS_LABEL: Record<string, string> = {
-  pending: 'En attente', confirmed: 'Confirmé', completed: 'Passé',
+  pending: 'Confirmé', confirmed: 'Confirmé', completed: 'Passé',
   cancelled: 'Annulé', no_show: 'Absent',
 }
 
