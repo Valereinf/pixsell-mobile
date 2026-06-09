@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ASSETS = join(__dirname, '..', 'assets')
 const SRC_BIRD = join(ASSETS, 'icon-source.png')
-const SRC_LOGO = join(ASSETS, 'logo-pixsell.png')
+const SRC_LOGO = join(ASSETS, 'pixsell_new_logo.png')
 
 // Pixels where max(R,G,B) < threshold become transparent (removes black bg)
 async function removeBlackBg(inputPath, threshold = 40) {
@@ -92,10 +92,10 @@ async function main() {
   // f) notification-icon.png — 96×96, fond transparent, oiseau blanc
   await placeOnCanvas({ size: 96, bg: CLEAR, fg: whiteBird, fgSize: 80, output: join(ASSETS, 'notification-icon.png') })
 
-  // g) splash-icon.png — fond transparent, logo complet 80%
+  // g) splash-icon.png — fond transparent, logo complet depuis pixsell_new_logo.png, 80%
   await placeOnCanvas({ size: S, bg: CLEAR, fg: logoNoBg, fgSize: Math.round(S * 0.8), output: join(ASSETS, 'splash-icon.png') })
 
-  // h) logo-pixsell.png — 512×512, fond transparent, logo complet 90%
+  // h) logo-pixsell.png — 512×512, fond transparent, logo complet depuis pixsell_new_logo.png, 90%
   await placeOnCanvas({ size: 512, bg: CLEAR, fg: logoNoBg, fgSize: Math.round(512 * 0.9), output: join(ASSETS, 'logo-pixsell.png') })
 
   // i) favicon.png — 48×48, oiseau coloré fond transparent
