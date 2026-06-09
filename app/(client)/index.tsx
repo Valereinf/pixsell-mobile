@@ -774,7 +774,7 @@ export default function ClientPortal() {
                     <Text style={{ fontSize: 13, color: '#6b7280' }}>{formatDateFR(r.date_rdv)} à {r.heure_rdv?.slice(0, 5)}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <StatutBadge statut={r.statut} />
-                      <Text style={{ fontSize: 13, color: '#059669', fontWeight: '600' }}>{Number(r.prix).toFixed(2)} €</Text>
+                      <Text style={{ fontSize: 13, color: '#059669', fontWeight: '600' }}>{Number(r.prix).toFixed(2)} $ CAD</Text>
                     </View>
                   </View>
                   {canCancel(r) && (
@@ -799,7 +799,7 @@ export default function ClientPortal() {
                     <Text style={{ fontSize: 13, color: '#6b7280' }}>{formatDateFR(r.date_rdv)} à {r.heure_rdv?.slice(0, 5)}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <StatutBadge statut={r.statut} />
-                      <Text style={{ fontSize: 13, color: '#059669', fontWeight: '600' }}>{Number(r.prix).toFixed(2)} €</Text>
+                      <Text style={{ fontSize: 13, color: '#059669', fontWeight: '600' }}>{Number(r.prix).toFixed(2)} $ CAD</Text>
                     </View>
                     {r.avis_token && !r.avis_id && (
                       <TouchableOpacity
@@ -843,7 +843,7 @@ export default function ClientPortal() {
               <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>Mes points</Text>
               <Text style={{ color: '#fff', fontSize: 36, fontWeight: '800' }}>{fidelite.points}</Text>
               <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>
-                Prochain cadeau à {fidelite.seuil} pts ({fidelite.valeur_cadeau} €)
+                Prochain cadeau à {fidelite.seuil} pts ({fidelite.valeur_cadeau} $ CAD)
               </Text>
             </View>
             <Text style={{ fontSize: 40 }}>⭐</Text>
@@ -861,7 +861,7 @@ export default function ClientPortal() {
               {fidelite.cadeaux.filter(c => c.statut === 'actif').map(c => (
                 <View key={c.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#f0fdf4', borderRadius: 12, padding: 12 }}>
                   <View>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#065f46' }}>{c.valeur} € de réduction</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#065f46' }}>{c.valeur} $ CAD de réduction</Text>
                     <Text style={{ fontSize: 12, color: '#6b7280', fontFamily: 'monospace' }}>{c.code}</Text>
                     {c.expire_at && <Text style={{ fontSize: 11, color: '#9ca3af' }}>Expire : {c.expire_at.slice(0, 10)}</Text>}
                   </View>
@@ -899,7 +899,7 @@ export default function ClientPortal() {
           <View style={{ gap: 8, marginTop: 12 }}>
             {[
               { icon: '📅', text: `Gagnez des points à chaque rendez-vous complété` },
-              { icon: '⭐', text: `Accumulez ${fidelite.seuil} points pour un cadeau de ${fidelite.valeur_cadeau} €` },
+              { icon: '⭐', text: `Accumulez ${fidelite.seuil} points pour un cadeau de ${fidelite.valeur_cadeau} $ CAD` },
               { icon: '🎁', text: 'Un code de réduction vous est automatiquement envoyé' },
             ].map((item, i) => (
               <View key={i} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
@@ -947,7 +947,7 @@ export default function ClientPortal() {
               <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>{copiedCode === parrainage.code ? 'Copié !' : 'Copier'}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => Share.share({ title: `Rejoignez ${company?.name}`, message: `Prenez RDV avec mon code et recevez ${parrainage.remise_filleul}€ de réduction ! ${lien}` })}
+              onPress={() => Share.share({ title: `Rejoignez ${company?.name}`, message: `Prenez RDV avec mon code et recevez ${parrainage.remise_filleul}$ CAD de réduction ! ${lien}` })}
               style={[s.copyBtn, { backgroundColor: 'rgba(255,255,255,0.2)', flex: 1, justifyContent: 'center' }]}
             >
               <Ionicons name="share-social-outline" size={16} color="#fff" />
@@ -960,7 +960,7 @@ export default function ClientPortal() {
           {[
             { label: 'Invités', value: parrainage.stats.total },
             { label: 'Complétés', value: parrainage.stats.completes },
-            { label: `Gains`, value: `${parrainage.stats.gains} €` },
+            { label: `Gains`, value: `${parrainage.stats.gains} $ CAD` },
           ].map((k, i) => (
             <Card key={i} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
               <Text style={{ fontSize: 22, fontWeight: '800', color: '#7c3aed' }}>{k.value}</Text>
@@ -995,8 +995,8 @@ export default function ClientPortal() {
           <View style={{ gap: 8, marginTop: 12 }}>
             {[
               { icon: '🔗', text: `Partagez votre code ou lien unique` },
-              { icon: '🎁', text: `Votre filleul reçoit ${parrainage.remise_filleul} € de réduction sur son premier RDV` },
-              { icon: '💰', text: `Vous recevez ${parrainage.remise_parrain} € de réduction après son RDV` },
+              { icon: '🎁', text: `Votre filleul reçoit ${parrainage.remise_filleul} $ CAD de réduction sur son premier RDV` },
+              { icon: '💰', text: `Vous recevez ${parrainage.remise_parrain} $ CAD de réduction après son RDV` },
             ].map((item, i) => (
               <View key={i} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
                 <Text style={{ fontSize: 20 }}>{item.icon}</Text>
@@ -1186,7 +1186,7 @@ export default function ClientPortal() {
                     </View>
                   </View>
                   <Text style={{ fontSize: 13, color: '#374151' }}>
-                    {o.type_remise === 'pourcentage' ? `${o.valeur_remise}% de réduction` : `${o.valeur_remise} € de réduction`}
+                    {o.type_remise === 'pourcentage' ? `${o.valeur_remise}% de réduction` : `${o.valeur_remise} $ CAD de réduction`}
                   </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Text style={{ fontSize: 12, fontFamily: 'monospace', color: '#7c3aed', fontWeight: '700' }}>{o.code}</Text>
