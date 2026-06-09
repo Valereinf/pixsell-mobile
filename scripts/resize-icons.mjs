@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ASSETS = join(__dirname, '..', 'assets')
-const SRC_BIRD = join(ASSETS, 'android-icon-foreground.png')
+const SRC_BIRD = join(ASSETS, 'icon-original.png')
 const SRC_LOGO = join(ASSETS, 'pixsell_new_logo.png')
 
 // Pixels where max(R,G,B) < threshold become transparent (removes black bg)
@@ -64,7 +64,7 @@ async function main() {
   const whiteBird = await toWhite(birdNoBg)
 
   const S = 1024
-  const birdPx = Math.round(S * 0.65)   // 666 px
+  const birdPx = 768   // 75% de 1024 — marge 128px de chaque côté
   const WHITE = { r: 255, g: 255, b: 255, alpha: 1 }
   const CLEAR = { r: 0, g: 0, b: 0, alpha: 0 }
 
