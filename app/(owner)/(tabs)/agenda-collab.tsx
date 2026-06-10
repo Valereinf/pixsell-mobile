@@ -800,7 +800,7 @@ export default function AgendaCollabScreen() {
 
               {selectedCells.length > 0 && (
                 <View style={{
-                  position: 'absolute', bottom: 80, left: 16, right: 16,
+                  position: 'absolute', bottom: 100, left: 16, right: 16,
                   backgroundColor: '#1f2937', borderRadius: 16,
                   zIndex: 999,
                   elevation: 10,
