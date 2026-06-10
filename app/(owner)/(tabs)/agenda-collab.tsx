@@ -679,7 +679,7 @@ export default function AgendaCollabScreen() {
         <>
           {/* ── CALENDRIER ── */}
           {tab === 'calendrier' && (
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, position: 'relative' }}>
               {/* Navigation semaine */}
               <View style={s.weekNav}>
                 <TouchableOpacity onPress={() => setWeekStart(w => { const d = new Date(w); d.setDate(d.getDate() - 7); return d })}>
@@ -799,9 +799,11 @@ export default function AgendaCollabScreen() {
                 <View style={{
                   position: 'absolute', bottom: 24, left: 16, right: 16,
                   backgroundColor: '#1f2937', borderRadius: 16,
+                  zIndex: 999,
+                  elevation: 10,
                   padding: 12, flexDirection: 'row', alignItems: 'center',
                   gap: 8, shadowColor: '#000', shadowOpacity: 0.3,
-                  shadowRadius: 12, elevation: 8,
+                  shadowRadius: 12,
                 }}>
                   <Text style={{ color: 'white', fontSize: 13, fontWeight: '600', flex: 1 }}>
                     {selectedCells.length} jour{selectedCells.length > 1 ? 's' : ''} sélectionné{selectedCells.length > 1 ? 's' : ''}
