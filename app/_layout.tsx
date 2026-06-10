@@ -4,6 +4,7 @@ import LottieView from 'lottie-react-native'
 import * as SplashScreen from 'expo-splash-screen'
 import { Stack, useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
+import * as Linking from 'expo-linking'
 import { supabase } from '../lib/supabase'
 import { setupNotificationHandler, registerPushToken } from '../lib/notifications'
 
@@ -25,6 +26,23 @@ export default function RootLayout() {
   // Setup notification handler + auth listener + tap listener
   useEffect(() => {
     setupNotificationHandler()
+
+    // ── Deep link handler — pixsell://king-cuts ────────────────────
+    const handleDeepLink = (url: string) => {
+      const parsed = Linking.parse(url)
+      const slug = parsed.hostname ?? parsed.path?.replace('/', '')
+      if (slug && slug !== 'reservation') {
+        router.push(`/(client)/salon?slug=${slug}` as Parameters<typeof router.push>[0])
+      }
+    }
+
+    const linkingSub = Linking.addEventListener('url', ({ url }) => {
+      handleDeepLink(url)
+    })
+
+    Linking.getInitialURL().then(url => {
+      if (url) handleDeepLink(url)
+    })
 
     // ── Auth listener ──────────────────────────────────────────────
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -70,6 +88,7 @@ export default function RootLayout() {
     return () => {
       subscription.unsubscribe()
       responseSub?.remove()
+      linkingSub.remove()
     }
   }, [])
 

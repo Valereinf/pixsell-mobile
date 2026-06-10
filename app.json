@@ -25,7 +25,27 @@
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
         "android.permission.POST_NOTIFICATIONS"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "pixsell"
+            },
+            {
+              "scheme": "https",
+              "host": "app.pixsellmedia.ca",
+              "pathPrefix": "/"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
       ]
     },
     "androidStatusBar": {
@@ -56,6 +76,12 @@
       "eas": {
         "projectId": "75fe8240-fe07-4514-954e-7cdbc77af6ff"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/75fe8240-fe07-4514-954e-7cdbc77af6ff"
     }
   }
 }
