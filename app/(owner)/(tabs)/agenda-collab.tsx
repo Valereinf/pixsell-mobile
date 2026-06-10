@@ -680,9 +680,6 @@ export default function AgendaCollabScreen() {
           {/* ── CALENDRIER ── */}
           {tab === 'calendrier' && (
             <View style={{ flex: 1, position: 'relative' }}>
-              <Text style={{ color: 'red', fontSize: 12, padding: 4 }}>
-                Sélection: {selectedCells.length} cellules
-              </Text>
               {/* Navigation semaine */}
               <View style={s.weekNav}>
                 <TouchableOpacity onPress={() => setWeekStart(w => { const d = new Date(w); d.setDate(d.getDate() - 7); return d })}>
