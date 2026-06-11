@@ -16,6 +16,7 @@ const NETLIFY_URL = 'https://app.pixsellmedia.ca'
 type TabId = 'overview' | 'campagnes' | 'fidelite' | 'relances' | 'promos' | 'remplissage' | 'parrainage'
 type SegmentCible = 'tous' | 'nouveau' | 'regulier' | 'frequent' | 'vip' | 'inactif' | 'anniversaire'
 type CampCanal = 'email' | 'sms' | 'les_deux'
+type RelanceCanal = 'email' | 'sms' | 'les_deux' | 'notif' | 'email_notif' | 'sms_notif' | 'tous'
 type CampStatut = 'brouillon' | 'planifie' | 'en_cours' | 'envoye' | 'erreur'
 type RelanceType = 'rappel_rdv' | 'rappel_rdv_h2' | 'inactif' | 'anniversaire' | 'no_show'
 
@@ -28,7 +29,7 @@ interface CampagneRow {
 
 interface RelanceConfig {
   id?: string; company_id?: string; type: RelanceType; actif: boolean
-  canal: CampCanal; delai_jours: number; sujet_email: string
+  canal: RelanceCanal; delai_jours: number; sujet_email: string
   message_email: string; message_sms: string
 }
 
@@ -74,6 +75,16 @@ const CANAUX: { id: CampCanal; label: string }[] = [
   { id: 'email',    label: 'Email uniquement' },
   { id: 'sms',      label: 'SMS uniquement' },
   { id: 'les_deux', label: 'Email + SMS' },
+]
+
+const RELANCE_CANAUX: { id: RelanceCanal; label: string }[] = [
+  { id: 'email',       label: 'Email' },
+  { id: 'sms',         label: 'SMS' },
+  { id: 'notif',       label: 'Notification' },
+  { id: 'les_deux',    label: 'Email + SMS' },
+  { id: 'email_notif', label: 'Email + Notification' },
+  { id: 'sms_notif',   label: 'SMS + Notification' },
+  { id: 'tous',        label: 'Email + SMS + Notification' },
 ]
 
 const CAMP_STATUT_META: Record<CampStatut, { label: string; color: string; bg: string }> = {
@@ -887,7 +898,7 @@ export default function MarketingScreen() {
               <ScrollView contentContainerStyle={{ padding: 20, gap: 12 }}>
                 <Text style={s.fieldLabel}>Canal</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-                  {CANAUX.map(cn => (
+                  {RELANCE_CANAUX.map(cn => (
                     <TouchableOpacity key={cn.id} onPress={() => setRelanceModal(r => r ? { ...r, canal: cn.id } : r)} style={[s.chip, relanceModal.canal === cn.id && s.chipActive]}>
                       <Text style={[s.chipText, relanceModal.canal === cn.id && s.chipTextActive]}>{cn.label}</Text>
                     </TouchableOpacity>
