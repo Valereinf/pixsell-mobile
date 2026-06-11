@@ -10,6 +10,8 @@ import { supabase } from '../../../lib/supabase'
 
 const { width: SCREEN_W } = Dimensions.get('window')
 
+const NETLIFY_URL = 'https://app.pixsellmedia.ca'
+
 // ── Constants ────────────────────────────────────────────────────
 const SLOT_H        = 44
 const START_H       = 7
@@ -138,6 +140,7 @@ export default function CalendrierScreen() {
   const [detailResa, setDetailResa] = useState<Resa | null>(null)
   const [updating, setUpdating] = useState(false)
   const [editingResaId, setEditingResaId] = useState<string | null>(null)
+  const [messageClient, setMessageClient] = useState('')
 
   const scrollRef = useRef<ScrollView>(null)
 
@@ -253,6 +256,7 @@ export default function CalendrierScreen() {
     } : null)
     setNewClientMode(false)
     setCreateError('')
+    setMessageClient('')
     setEditingResaId(r.id)
     setDetailResa(null)
     setCreateModal(true)
@@ -278,6 +282,15 @@ export default function CalendrierScreen() {
           client_email: selectedClient?.email ?? newEmail ?? null,
         }).eq('id', editingResaId)
         if (error) { setCreateError(error.message); setCreating(false); return }
+        fetch(`${NETLIFY_URL}/.netlify/functions/send-confirmation`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type:           'admin-modify',
+            reservation_id: editingResaId,
+            message_client: messageClient.trim() || null,
+          }),
+        }).catch(e => console.error('[send-confirmation] failed:', e))
         setEditingResaId(null)
         setCreateModal(false)
         loadResas()
@@ -662,6 +675,36 @@ export default function CalendrierScreen() {
                   </View>
                 )}
               </View>
+
+              {editingResaId ? (
+                <View>
+                  <Text style={s.fieldLabel}>Message au client (optionnel)</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8, marginTop: 6 }}>
+                    {[
+                      "Désolé pour le changement d'horaire 🙏",
+                      'Votre barbier a changé pour ce RDV',
+                      "Créneaux ajustés suite à une urgence",
+                    ].map(suggestion => (
+                      <TouchableOpacity
+                        key={suggestion}
+                        onPress={() => setMessageClient(suggestion)}
+                        style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' }}
+                      >
+                        <Text style={{ fontSize: 11, color: '#6b7280' }}>{suggestion}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <TextInput
+                    style={[s.input, { height: 80, textAlignVertical: 'top' }]}
+                    value={messageClient}
+                    onChangeText={t => setMessageClient(t.slice(0, 300))}
+                    multiline
+                    placeholder="Ex: Désolé pour ce changement..."
+                    maxLength={300}
+                  />
+                  <Text style={{ fontSize: 11, color: '#9ca3af', textAlign: 'right', marginTop: 2 }}>{messageClient.length}/300</Text>
+                </View>
+              ) : null}
 
               {createError ? <Text style={{ color: '#dc2626', fontSize: 13 }}>{createError}</Text> : null}
 

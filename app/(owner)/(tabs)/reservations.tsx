@@ -199,6 +199,7 @@ function DetailModal({ row, companyId, onClose, onStatusChange, onUpdate }: Deta
   const [editEmployes, setEditEmployes] = useState<EmployeRow[]>([])
   const [editDataLoaded, setEditDataLoaded] = useState(false)
   const [editSaving, setEditSaving] = useState(false)
+  const [messageClient, setMessageClient] = useState('')
 
   const isActive = row.statut === 'pending' || row.statut === 'confirmed'
   const canEdit  = row.statut !== 'cancelled' && row.statut !== 'completed'
@@ -249,6 +250,7 @@ function DetailModal({ row, companyId, onClose, onStatusChange, onUpdate }: Deta
       const found = editServices.find(sv => sv.nom === row.service)
       if (found) { setEditSvcId(found.id); setEditPrix(String(found.prix)) }
     }
+    setMessageClient('')
     setEditing(true)
   }
 
@@ -276,6 +278,15 @@ function DetailModal({ row, companyId, onClose, onStatusChange, onUpdate }: Deta
         employes: emp ? [{ nom: emp.nom }] : row.employes,
       })
       setEditing(false)
+      fetch(`${NETLIFY_URL}/.netlify/functions/send-confirmation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type:           'admin-modify',
+          reservation_id: row.id,
+          message_client: messageClient.trim() || null,
+        }),
+      }).catch(e => console.error('[send-confirmation] failed:', e))
     }
     setEditSaving(false)
   }
@@ -357,6 +368,34 @@ function DetailModal({ row, companyId, onClose, onStatusChange, onUpdate }: Deta
                     placeholder="Note visible uniquement par l'équipe..."
                     placeholderTextColor="#9ca3af"
                   />
+                </View>
+                <View>
+                  <Text style={s.sectionLabel}>MESSAGE AU CLIENT (OPTIONNEL)</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                    {[
+                      "Désolé pour le changement d'horaire 🙏",
+                      'Votre barbier a changé pour ce RDV',
+                      "Créneaux ajustés suite à une urgence",
+                    ].map(suggestion => (
+                      <TouchableOpacity
+                        key={suggestion}
+                        onPress={() => setMessageClient(suggestion)}
+                        style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' }}
+                      >
+                        <Text style={{ fontSize: 11, color: '#6b7280' }}>{suggestion}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <TextInput
+                    style={[s.input, { height: 80, textAlignVertical: 'top' }]}
+                    value={messageClient}
+                    onChangeText={t => setMessageClient(t.slice(0, 300))}
+                    multiline
+                    placeholder="Ex: Désolé pour ce changement..."
+                    placeholderTextColor="#9ca3af"
+                    maxLength={300}
+                  />
+                  <Text style={{ fontSize: 11, color: '#9ca3af', textAlign: 'right', marginTop: 2 }}>{messageClient.length}/300</Text>
                 </View>
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                   <TouchableOpacity style={[s.dialogBtn, { flex: 1 }]} onPress={() => setEditing(false)}>
