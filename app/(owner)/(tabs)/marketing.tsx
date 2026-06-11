@@ -86,7 +86,7 @@ const CAMP_STATUT_META: Record<CampStatut, { label: string; color: string; bg: s
 
 const RELANCES_CONFIG: { type: RelanceType; label: string; desc: string; emoji: string }[] = [
   { type: 'rappel_rdv',    label: 'Rappel J-1',       desc: 'Rappel la veille du RDV',      emoji: '📅' },
-  { type: 'rappel_rdv_h2', label: 'Rappel H-2',       desc: 'Rappel 2h avant le RDV',       emoji: '⏰' },
+  { type: 'rappel_rdv_h2', label: 'Rappel H-6',       desc: 'Rappel 6h avant le RDV',       emoji: '⏰' },
   { type: 'inactif',       label: 'Clients inactifs', desc: 'Clients sans visite récente',  emoji: '😴' },
   { type: 'anniversaire',  label: 'Anniversaire',     desc: 'Message jour J de naissance',  emoji: '🎂' },
   { type: 'no_show',       label: 'Après no-show',    desc: 'Relance après absence',        emoji: '❌' },
