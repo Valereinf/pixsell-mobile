@@ -679,21 +679,6 @@ export default function CalendrierScreen() {
               {editingResaId ? (
                 <View>
                   <Text style={s.fieldLabel}>Message au client (optionnel)</Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8, marginTop: 6 }}>
-                    {[
-                      "Désolé pour le changement d'horaire 🙏",
-                      'Votre barbier a changé pour ce RDV',
-                      "Créneaux ajustés suite à une urgence",
-                    ].map(suggestion => (
-                      <TouchableOpacity
-                        key={suggestion}
-                        onPress={() => setMessageClient(suggestion)}
-                        style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' }}
-                      >
-                        <Text style={{ fontSize: 11, color: '#6b7280' }}>{suggestion}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
                   <TextInput
                     style={[s.input, { height: 80, textAlignVertical: 'top' }]}
                     value={messageClient}
