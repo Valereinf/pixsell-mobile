@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Tabs, useRouter } from 'expo-router'
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
+import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../../lib/supabase'
+import TabletSidebar from '../../../components/TabletSidebar'
 
 const EXTRA_ITEMS = [
   { route: '/(owner)/(tabs)/employes',      icon: 'people-outline',        label: 'Employés' },
@@ -19,6 +20,8 @@ const EXTRA_ITEMS = [
 export default function TabsLayout() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const { width } = useWindowDimensions()
+  const isTablet = width >= 768
   const [moreOpen, setMoreOpen] = useState(false)
 
   async function handleLogout() {
@@ -26,25 +29,28 @@ export default function TabsLayout() {
     router.replace('/(auth)/login')
   }
 
-  return (
-    <>
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarStyle: {
-            position: 'absolute',
-            backgroundColor: 'rgba(255,255,255,0.82)',
-            borderTopWidth: 0,
-            elevation: 0,
-            height: 64 + insets.bottom,
-            paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
-            borderTopLeftRadius: 20,
-            borderTopRightRadius: 20,
-            shadowColor: '#7c3aed',
-            shadowOffset: { width: 0, height: -4 },
-            shadowOpacity: 0.08,
-            shadowRadius: 16,
-          },
+  const tabBarStyle = isTablet
+    ? { display: 'none' as const }
+    : {
+        position: 'absolute' as const,
+        backgroundColor: 'rgba(255,255,255,0.82)',
+        borderTopWidth: 0,
+        elevation: 0,
+        height: 64 + insets.bottom,
+        paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        shadowColor: '#7c3aed',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+      }
+
+  const tabs = (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle,
           tabBarBackground: () => (
             <View style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -91,36 +97,48 @@ export default function TabsLayout() {
         <Tabs.Screen name="avis"          options={{ href: null }} />
         <Tabs.Screen name="apparence"     options={{ href: null }} />
       </Tabs>
+  )
 
-      {/* More modal */}
-      <Modal visible={moreOpen} animationType="slide" transparent onRequestClose={() => setMoreOpen(false)}>
-        <TouchableOpacity style={modal.backdrop} activeOpacity={1} onPress={() => setMoreOpen(false)} />
-        <SafeAreaView edges={['bottom']} style={modal.sheet}>
-          <View style={modal.handle} />
-          <Text style={modal.sheetTitle}>Autres sections</Text>
-          <ScrollView>
-            {EXTRA_ITEMS.map(item => (
-              <TouchableOpacity
-                key={item.route}
-                style={modal.row}
-                onPress={() => { setMoreOpen(false); router.push(item.route) }}
-              >
-                <View style={modal.iconBox}>
-                  <Ionicons name={item.icon as keyof typeof Ionicons.glyphMap} size={20} color="#7c3aed" />
+  return (
+    <>
+      {isTablet ? (
+        <View style={{ flex: 1, flexDirection: 'row' }}>
+          <TabletSidebar />
+          <View style={{ flex: 1 }}>{tabs}</View>
+        </View>
+      ) : tabs}
+
+      {/* More modal — phone only */}
+      {!isTablet && (
+        <Modal visible={moreOpen} animationType="slide" transparent onRequestClose={() => setMoreOpen(false)}>
+          <TouchableOpacity style={modal.backdrop} activeOpacity={1} onPress={() => setMoreOpen(false)} />
+          <SafeAreaView edges={['bottom']} style={modal.sheet}>
+            <View style={modal.handle} />
+            <Text style={modal.sheetTitle}>Autres sections</Text>
+            <ScrollView>
+              {EXTRA_ITEMS.map(item => (
+                <TouchableOpacity
+                  key={item.route}
+                  style={modal.row}
+                  onPress={() => { setMoreOpen(false); router.push(item.route) }}
+                >
+                  <View style={modal.iconBox}>
+                    <Ionicons name={item.icon as keyof typeof Ionicons.glyphMap} size={20} color="#7c3aed" />
+                  </View>
+                  <Text style={modal.rowLabel}>{item.label}</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity style={[modal.row, { marginTop: 8 }]} onPress={handleLogout}>
+                <View style={[modal.iconBox, { backgroundColor: 'rgba(239,68,68,0.08)' }]}>
+                  <Ionicons name="log-out-outline" size={20} color="#ef4444" />
                 </View>
-                <Text style={modal.rowLabel}>{item.label}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
+                <Text style={[modal.rowLabel, { color: '#ef4444' }]}>Déconnexion</Text>
               </TouchableOpacity>
-            ))}
-            <TouchableOpacity style={[modal.row, { marginTop: 8 }]} onPress={handleLogout}>
-              <View style={[modal.iconBox, { backgroundColor: 'rgba(239,68,68,0.08)' }]}>
-                <Ionicons name="log-out-outline" size={20} color="#ef4444" />
-              </View>
-              <Text style={[modal.rowLabel, { color: '#ef4444' }]}>Déconnexion</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+      )}
     </>
   )
 }
