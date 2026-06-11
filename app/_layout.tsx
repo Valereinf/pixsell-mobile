@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Animated, Easing, View, StyleSheet, Dimensions } from 'react-native'
+import { Animated, AppState, Easing, View, StyleSheet, Dimensions } from 'react-native'
 import LottieView from 'lottie-react-native'
 import * as SplashScreen from 'expo-splash-screen'
 import { Stack, useRouter } from 'expo-router'
@@ -90,6 +90,15 @@ export default function RootLayout() {
       responseSub?.remove()
       linkingSub.remove()
     }
+  }, [])
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', async (state) => {
+      if (state === 'active') {
+        await supabase.auth.refreshSession()
+      }
+    })
+    return () => sub.remove()
   }, [])
 
   useEffect(() => {
