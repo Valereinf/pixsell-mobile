@@ -387,8 +387,7 @@ export default function EmployePortal() {
 
   useEffect(() => {
     if (weekLoading || tab !== 'semaine') return
-    const slot = Math.max(0, Math.floor((nowMins - START_H * 60) / 15) - 2)
-    setTimeout(() => weekScrollRef.current?.scrollTo({ y: slot * SLOT_H, animated: true }), 400)
+    setTimeout(() => weekScrollRef.current?.scrollTo({ y: 0, animated: false }), 100)
   }, [weekLoading])
 
   // Profil edit
