@@ -54,6 +54,7 @@ interface ServiceRow {
 interface EmployeRow {
   id: string
   nom: string
+  duree_ajustement_pct?: number | null
 }
 
 type HoraireDay = { ouvert: boolean; debut: string; fin: string }
@@ -237,7 +238,7 @@ function DetailModal({ row, companyId, onClose, onStatusChange, onUpdate }: Deta
     if (!editDataLoaded) {
       Promise.all([
         supabase.from('services_catalogue').select('id, nom, prix, duree_minutes').eq('company_id', companyId).eq('actif', true).order('ordre', { ascending: true }),
-        supabase.from('employes').select('id, nom').eq('company_id', companyId).eq('actif', true).order('nom'),
+        supabase.from('employes').select('id, nom, duree_ajustement_pct').eq('company_id', companyId).eq('actif', true).order('nom'),
       ]).then(([{ data: s }, { data: e }]) => {
         const svcs = (s ?? []) as ServiceRow[]
         setEditServices(svcs)
@@ -608,7 +609,7 @@ function BookingModal({ company, onClose, onCreated }: BookingModalProps) {
   useEffect(() => {
     Promise.all([
       supabase.from('services').select('id, nom, prix, duree_minutes').eq('company_id', company.id).eq('actif', true).order('nom'),
-      supabase.from('employes').select('id, nom').eq('company_id', company.id).eq('actif', true).order('nom'),
+      supabase.from('employes').select('id, nom, duree_ajustement_pct').eq('company_id', company.id).eq('actif', true).order('nom'),
     ]).then(([{ data: s }, { data: e }]) => {
       setServices((s ?? []) as ServiceRow[])
       setEmployes((e ?? []) as EmployeRow[])
@@ -620,7 +621,10 @@ function BookingModal({ company, onClose, onCreated }: BookingModalProps) {
     if (!svcId || !date) { setSlots([]); return }
     const svc = services.find(sv => sv.id === svcId)
     if (!svc) return
-    const duree = svc.duree_minutes || 60
+    const selectedEmpForSlots = employes.find(e => e.id === empId)
+    const dureeBase = svc.duree_minutes || 0
+    const ajustementSlots = selectedEmpForSlots?.duree_ajustement_pct ?? 0
+    const duree = dureeBase + ajustementSlots || 60
 
     const go = async () => {
       setLoadingSlots(true)
@@ -700,6 +704,10 @@ function BookingModal({ company, onClose, onCreated }: BookingModalProps) {
       }
 
       const svc = services.find(sv => sv.id === svcId)
+      const empForInsert = employes.find(e => e.id === empId)
+      const dureeBaseInsert = svc?.duree_minutes || 0
+      const ajustementInsert = empForInsert?.duree_ajustement_pct ?? 0
+      const dureeFinale = dureeBaseInsert + ajustementInsert || 60
       const cancel_token = simpleUUID()
       const { error: insertErr } = await supabase.from('reservations').insert({
         company_id: company.id,
@@ -709,7 +717,7 @@ function BookingModal({ company, onClose, onCreated }: BookingModalProps) {
         date_rdv:   date,
         heure_rdv:  heure,
         prix:       svc?.prix ?? 0,
-        duree_rdv:  svc?.duree_minutes ?? 60,
+        duree_rdv:  dureeFinale,
         statut:     'confirmed',
         cancel_token,
         ...clientData,
@@ -731,6 +739,10 @@ function BookingModal({ company, onClose, onCreated }: BookingModalProps) {
   }
 
   const selectedSvc = services.find(sv => sv.id === svcId)
+  const selectedEmp = employes.find(e => e.id === empId) ?? null
+  const dureeBaseRecap = selectedSvc?.duree_minutes || 0
+  const ajustementRecap = selectedEmp?.duree_ajustement_pct ?? 0
+  const dureeAffichee = dureeBaseRecap + ajustementRecap || 60
 
   return (
     <Modal visible animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'overFullScreen'} onRequestClose={onClose}>
@@ -760,9 +772,16 @@ function BookingModal({ company, onClose, onCreated }: BookingModalProps) {
                   ))}
                 </ScrollView>
                 {selectedSvc ? (
-                  <Text style={{ fontSize: 12, color: '#7c3aed', marginTop: 6 }}>
-                    Sélectionné : {selectedSvc.nom} · {selectedSvc.duree_minutes} min
-                  </Text>
+                  <View style={{ marginTop: 6 }}>
+                    <Text style={{ fontSize: 12, color: '#7c3aed' }}>
+                      Sélectionné : {selectedSvc.nom} · {dureeAffichee} min
+                    </Text>
+                    {ajustementRecap > 0 && selectedEmp ? (
+                      <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 2, fontStyle: 'italic' }}>
+                        Durée ajustée pour {selectedEmp.nom} (base : {dureeBaseRecap}min +{ajustementRecap}min)
+                      </Text>
+                    ) : null}
+                  </View>
                 ) : null}
               </View>
 
