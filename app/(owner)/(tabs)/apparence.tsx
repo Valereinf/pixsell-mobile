@@ -204,6 +204,16 @@ export default function ApparenceOwner() {
   const [saving, setSaving]       = useState(false)
   const [saved, setSaved]         = useState(false)
   const [uploading, setUploading] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin]     = useState(false)
+  const [adminChecked, setAdminChecked] = useState(false)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      const role = data.session?.user?.app_metadata?.role
+      setIsAdmin(role === 'pixsell_admin')
+      setAdminChecked(true)
+    })
+  }, [])
 
   useEffect(() => {
     if (!company) return
@@ -659,6 +669,22 @@ export default function ApparenceOwner() {
   }
 
   // ── Render ───────────────────────────────────────────────────────────────────
+
+  if (!adminChecked) return null
+
+  if (!isAdmin) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f3ff', justifyContent: 'center', alignItems: 'center', padding: 32 }} edges={['top']}>
+        <Ionicons name="lock-closed-outline" size={48} color="#7c3aed" />
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827', marginTop: 16, textAlign: 'center' }}>
+          Accès restreint
+        </Text>
+        <Text style={{ fontSize: 15, color: '#6b7280', marginTop: 10, textAlign: 'center' }}>
+          Cette section est réservée à l'administrateur Pixsell.
+        </Text>
+      </SafeAreaView>
+    )
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f3ff' }} edges={['top']}>

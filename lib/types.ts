@@ -93,6 +93,9 @@ export interface Company {
   politique_clause_acceptation?: boolean | null
   politique_clause_frais?: boolean | null
   politique_clause_delai?: boolean | null
+  // Quota & abonnement
+  subscription_status?: 'trial' | 'active' | 'blocked' | null
+  quota_gratuit?: number | null
 }
 
 export interface Client {
