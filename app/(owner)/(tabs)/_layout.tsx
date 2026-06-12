@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Tabs, useRouter } from 'expo-router'
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -23,6 +23,18 @@ export default function TabsLayout() {
   const { width } = useWindowDimensions()
   const isTablet = width >= 768
   const [moreOpen, setMoreOpen] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      const role = data.session?.user?.app_metadata?.role
+      setIsAdmin(role === 'pixsell_admin')
+    })
+  }, [])
+
+  const extraItems = EXTRA_ITEMS.filter(item =>
+    item.route !== '/(owner)/(tabs)/apparence' || isAdmin
+  )
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -116,7 +128,7 @@ export default function TabsLayout() {
             <View style={modal.handle} />
             <Text style={modal.sheetTitle}>Autres sections</Text>
             <ScrollView>
-              {EXTRA_ITEMS.map(item => (
+              {extraItems.map(item => (
                 <TouchableOpacity
                   key={item.route}
                   style={modal.row}

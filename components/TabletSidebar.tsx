@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native'
 import { useRouter, usePathname } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -26,6 +27,18 @@ export default function TabletSidebar() {
   const pathname = usePathname()
   const insets   = useSafeAreaInsets()
   const { company } = useOwnerContext()
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      const role = data.session?.user?.app_metadata?.role
+      setIsAdmin(role === 'pixsell_admin')
+    })
+  }, [])
+
+  const navItems = NAV_ITEMS.filter(item =>
+    item.segment !== 'apparence' || isAdmin
+  )
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -51,7 +64,7 @@ export default function TabletSidebar() {
 
       {/* Nav items */}
       <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-        {NAV_ITEMS.map(item => {
+        {navItems.map(item => {
           const active = pathname.includes(item.segment)
           return (
             <TouchableOpacity
