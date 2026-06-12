@@ -31,6 +31,7 @@ interface ReservationRow {
   duree_rdv: number | null
   note_interne: string | null
   employes: { nom: string }[] | null
+  choix_direct?: boolean | null
 }
 
 interface ClientRow {
@@ -952,7 +953,7 @@ export default function ReservationsScreen() {
     if (!company) return
     const { data } = await supabase
       .from('reservations')
-      .select('id, client_id, client_prenom, client_nom, client_email, client_telephone, service, employee_id, date_rdv, heure_rdv, prix, statut, cancel_token, duree_rdv, note_interne, employes(nom)')
+      .select('id, client_id, client_prenom, client_nom, client_email, client_telephone, service, employee_id, date_rdv, heure_rdv, prix, statut, cancel_token, duree_rdv, note_interne, choix_direct, employes(nom)')
       .eq('company_id', company.id)
       .order('date_rdv', { ascending: false })
       .order('heure_rdv', { ascending: false })
@@ -1133,7 +1134,7 @@ export default function ReservationsScreen() {
                 {/* Row 1: client + status */}
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
                   <View style={{ flex: 1, marginRight: 10 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#111827' }} numberOfLines={1}>{clientName(r)}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#111827' }} numberOfLines={1}>{clientName(r)}{r.choix_direct ? ' ❤️' : ''}</Text>
                     {r.client_telephone ? <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 1 }}>{r.client_telephone}</Text> : null}
                   </View>
                   <StatusBadge statut={r.statut} />

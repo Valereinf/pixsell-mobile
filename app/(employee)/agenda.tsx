@@ -26,6 +26,7 @@ interface ResaToday {
   id: string; date_rdv: string; heure_rdv: string; service: string | null
   client_prenom: string | null; client_nom: string | null
   statut: string; prix: string | number | null; duree_rdv: number | null
+  choix_direct?: boolean | null
 }
 
 interface DemandeRH {
@@ -184,7 +185,7 @@ function RdvCard({ r }: { r: ResaToday }) {
         {r.duree_rdv ? <Text style={s.rdvDuree}>{r.duree_rdv}min</Text> : null}
       </View>
       <View style={{ flex: 1, gap: 4 }}>
-        <Text style={s.rdvClient}>{clientName}</Text>
+        <Text style={s.rdvClient}>{clientName}{r.choix_direct ? ' ❤️' : ''}</Text>
         {r.service ? <Text style={s.rdvService}>{r.service}</Text> : null}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <StatutBadge statut={r.statut} />
@@ -250,7 +251,7 @@ export default function EmployePortal() {
     if (tab !== 'notifications_rdv' || !employe?.id) return
     supabase
       .from('reservations')
-      .select('id, date_rdv, heure_rdv, service, client_prenom, client_nom, statut, prix, duree_rdv')
+      .select('id, date_rdv, heure_rdv, service, client_prenom, client_nom, statut, prix, duree_rdv, choix_direct')
       .eq('employee_id', employe.id)   // colonne correcte : employee_id (deux e)
       .order('created_at', { ascending: false })
       .limit(30)
@@ -366,7 +367,7 @@ export default function EmployePortal() {
     setWeekLoading(true)
     supabase
       .from('reservations')
-      .select('id, date_rdv, heure_rdv, service, client_prenom, client_nom, statut, prix, duree_rdv')
+      .select('id, date_rdv, heure_rdv, service, client_prenom, client_nom, statut, prix, duree_rdv, choix_direct')
       .eq('employee_id', employe.id)
       .gte('date_rdv', weekMon)
       .lte('date_rdv', weekSun)
@@ -1413,7 +1414,7 @@ export default function EmployePortal() {
                             }}
                           >
                             <Text style={{ fontSize: 9, fontWeight: '700', color: '#065f46' }} numberOfLines={1}>
-                              {r.heure_rdv?.slice(0, 5)}
+                              {r.heure_rdv?.slice(0, 5)}{r.choix_direct ? ' ❤️' : ''}
                             </Text>
                             {h > 28 && (
                               <Text style={{ fontSize: 9, color: '#111827', fontWeight: '600' }} numberOfLines={1}>
@@ -1446,7 +1447,7 @@ export default function EmployePortal() {
             <View style={sw.detailSheet}>
               <View style={sw.detailHandle} />
               <Text style={sw.detailName}>
-                {[detailWeekRdv.client_prenom, detailWeekRdv.client_nom].filter(Boolean).join(' ') || 'Client'}
+                {[detailWeekRdv.client_prenom, detailWeekRdv.client_nom].filter(Boolean).join(' ') || 'Client'}{detailWeekRdv.choix_direct ? ' ❤️' : ''}
               </Text>
               {detailWeekRdv.service ? <Text style={sw.detailService}>{detailWeekRdv.service}</Text> : null}
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 4 }}>

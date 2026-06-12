@@ -22,6 +22,7 @@ interface Resa {
   heure_rdv: string
   statut: string
   prix: number | null
+  choix_direct?: boolean | null
 }
 
 // ── Constants ────────────────────────────────────────────────────
@@ -53,7 +54,7 @@ function inits(prenom: string | null, nom: string | null) {
 async function fetchRecent(companyId: string): Promise<Resa[]> {
   const { data } = await supabase
     .from('reservations')
-    .select('id, client_prenom, client_nom, service, date_rdv, heure_rdv, statut, prix')
+    .select('id, client_prenom, client_nom, service, date_rdv, heure_rdv, statut, prix, choix_direct')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false })
     .limit(30)
@@ -372,7 +373,7 @@ const maxVal = Math.max(...weekData, ...prevWeekData, 1)
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827' }} numberOfLines={1}>
-                        {clientName(r)}
+                        {clientName(r)}{r.choix_direct ? ' ❤️' : ''}
                       </Text>
                       <Text style={{ fontSize: 11, color: '#9ca3af' }} numberOfLines={1}>
                         {r.service || '—'}

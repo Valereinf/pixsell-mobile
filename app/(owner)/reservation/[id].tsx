@@ -22,6 +22,7 @@ interface ResaDetail {
   client_prenom: string | null
   client_nom: string | null
   client_email: string | null
+  choix_direct?: boolean | null
 }
 
 interface HistoResa {
@@ -68,7 +69,7 @@ export default function ReservationDetailScreen() {
       // 1. Fetch réservation
       const { data: resaData } = await supabase
         .from('reservations')
-        .select('id, company_id, date_rdv, heure_rdv, service, employee_id, duree_rdv, prix, statut, client_prenom, client_nom, client_email')
+        .select('id, company_id, date_rdv, heure_rdv, service, employee_id, duree_rdv, prix, statut, client_prenom, client_nom, client_email, choix_direct')
         .eq('id', id)
         .single()
 
@@ -183,7 +184,7 @@ export default function ReservationDetailScreen() {
         <View style={s.card}>
           <Text style={s.sectionLabel}>CLIENT</Text>
           <Row icon="person-circle-outline" label="Nom">
-            <Text style={s.rowValue}>{clientFullName}</Text>
+            <Text style={s.rowValue}>{clientFullName}{resa.choix_direct ? ' ❤️' : ''}</Text>
           </Row>
           <Row icon="mail-outline" label="Email" last>
             <Text style={[s.rowValue, { color: '#7c3aed' }]} numberOfLines={1}>

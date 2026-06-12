@@ -39,6 +39,7 @@ interface Resa {
   prix: number | null
   statut: Statut
   cancel_token: string | null
+  choix_direct?: boolean | null
 }
 
 interface Employe {
@@ -178,7 +179,7 @@ export default function CalendrierScreen() {
 
     const [{ data: resaData }, { data: absData }] = await Promise.all([
       supabase.from('reservations')
-        .select('id, client_id, client_prenom, client_nom, client_telephone, client_email, service, employee_id, date_rdv, heure_rdv, duree_rdv, prix, statut, cancel_token')
+        .select('id, client_id, client_prenom, client_nom, client_telephone, client_email, service, employee_id, date_rdv, heure_rdv, duree_rdv, prix, statut, cancel_token, choix_direct')
         .eq('company_id', company.id)
         .gte('date_rdv', dateFrom).lte('date_rdv', dateTo)
         .order('heure_rdv'),
@@ -392,7 +393,7 @@ export default function CalendrierScreen() {
               borderRadius: 6, padding: 4, overflow: 'hidden',
             }}>
               <Text style={{ fontSize: 11, fontWeight: '700', color: '#111827' }} numberOfLines={1}>
-                {[r.client_prenom, r.client_nom].filter(Boolean).join(' ') || '—'}
+                {[r.client_prenom, r.client_nom].filter(Boolean).join(' ') || '—'}{r.choix_direct ? ' ❤️' : ''}
               </Text>
               {h > 36 && <Text style={{ fontSize: 10, color: '#6b7280' }} numberOfLines={1}>{r.service}</Text>}
               {h > 52 && <Text style={{ fontSize: 10, color: '#9ca3af' }}>{r.heure_rdv?.slice(0, 5)}</Text>}
@@ -710,7 +711,7 @@ export default function CalendrierScreen() {
               <TouchableOpacity onPress={() => setDetailResa(null)}><Ionicons name="close" size={22} color="#6b7280" /></TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
-              <View style={s.detailRow}><Ionicons name="person-outline" size={16} color="#7c3aed" /><Text style={s.detailText}>{[detailResa.client_prenom, detailResa.client_nom].filter(Boolean).join(' ') || 'Sans nom'}</Text></View>
+              <View style={s.detailRow}><Ionicons name="person-outline" size={16} color="#7c3aed" /><Text style={s.detailText}>{[detailResa.client_prenom, detailResa.client_nom].filter(Boolean).join(' ') || 'Sans nom'}{detailResa.choix_direct ? ' ❤️' : ''}</Text></View>
               {detailResa.client_telephone && <View style={s.detailRow}><Ionicons name="call-outline" size={16} color="#7c3aed" /><Text style={s.detailText}>{detailResa.client_telephone}</Text></View>}
               {detailResa.client_email && <View style={s.detailRow}><Ionicons name="mail-outline" size={16} color="#7c3aed" /><Text style={s.detailText}>{detailResa.client_email}</Text></View>}
               <View style={s.detailRow}><Ionicons name="cut-outline" size={16} color="#7c3aed" /><Text style={s.detailText}>{detailResa.service || '—'}</Text></View>
