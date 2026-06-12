@@ -20,7 +20,7 @@ import type { EmployeProfile } from '../../lib/employeAuth'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type Tab = 'accueil' | 'mesrdv' | 'demandes' | 'profil' | 'performances' | 'gratifications' | 'notifications_rdv' | 'historique_rdv'
+type Tab = 'accueil' | 'mesrdv' | 'demandes' | 'profil' | 'perfs_gratifs' | 'notifications_rdv' | 'historique_rdv'
 
 interface ResaToday {
   id: string; date_rdv: string; heure_rdv: string; service: string | null
@@ -468,15 +468,13 @@ export default function EmployePortal() {
       } else if (t === 'demandes') {
         const data = await getDemandes(tok)
         setDemandes((data.demandes as DemandeRH[]) ?? [])
-      } else if (t === 'performances') {
-        const data = await getStats(tok)
-        setStats(data as Stats)
-      } else if (t === 'gratifications') {
-        const data = await getGratifications(tok)
+      } else if (t === 'perfs_gratifs') {
+        const [statsData, gratifData] = await Promise.all([getStats(tok), getGratifications(tok)])
+        setStats(statsData as Stats)
         const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-        const recentGratifs = ((data.gratifications as Gratif[]) ?? []).filter(g => g.created_at >= thirtyDaysAgo)
+        const recentGratifs = ((gratifData.gratifications as Gratif[]) ?? []).filter(g => g.created_at >= thirtyDaysAgo)
         setGratifs(recentGratifs)
-        if ((data.unread_count as number) > 0) {
+        if ((gratifData.unread_count as number) > 0) {
           await markGratifRead(tok)
           setUnreadGratif(0)
         }
@@ -685,7 +683,7 @@ export default function EmployePortal() {
 
         {/* Gratif banner */}
         {unreadGratif > 0 && (
-          <TouchableOpacity onPress={() => switchTab('gratifications')}>
+          <TouchableOpacity onPress={() => switchTab('perfs_gratifs')}>
             <LinearGradient colors={['#7c3aed', '#ec4899']} style={s.gratifBanner}>
               <Text style={{ fontSize: 20 }}>🎁</Text>
               <Text style={{ color: '#fff', fontWeight: '700', flex: 1 }}>
@@ -1112,105 +1110,105 @@ export default function EmployePortal() {
     )
   }
 
-  function PerformancesTab() {
-    if (!stats) {
-      return (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60 }}>
-          <ActivityIndicator color="#7c3aed" />
-        </View>
-      )
-    }
+  function PerfsGratifsTab() {
     return (
       <View style={{ padding: 16, gap: 16, paddingBottom: 24 }}>
-        {/* KPI cards */}
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          <Card style={{ flex: 1, alignItems: 'center', gap: 4 }}>
-            <Text style={{ fontSize: 28, fontWeight: '800', color: '#7c3aed' }}>{stats.rdv_completes}</Text>
-            <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'center' }}>RDV complétés</Text>
-          </Card>
-          <Card style={{ flex: 1, alignItems: 'center', gap: 4 }}>
-            <Text style={{ fontSize: 22, fontWeight: '800', color: '#059669' }}>
-              {stats.revenus_mois.toFixed(0)}$
-            </Text>
-            <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'center' }}>Revenus mois</Text>
-          </Card>
-          <Card style={{ flex: 1, alignItems: 'center', gap: 4 }}>
-            <Text style={{ fontSize: 28, fontWeight: '800', color: '#f59e0b' }}>
-              {stats.note_moyenne != null ? stats.note_moyenne.toFixed(1) : '—'}
-            </Text>
-            <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'center' }}>Note ★</Text>
-          </Card>
-        </View>
-
-        {/* Avis récents */}
-        {stats.avis_recents.length > 0 && (
-          <Card>
-            <Text style={s.cardTitle}>Avis récents</Text>
-            <View style={{ gap: 12, marginTop: 12 }}>
-              {stats.avis_recents.map(a => (
-                <View key={a.id} style={{ gap: 4 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Stars note={a.note} />
-                    <Text style={{ fontSize: 11, color: '#9ca3af' }}>{relativeTime(a.created_at)}</Text>
-                  </View>
-                  {a.commentaire ? (
-                    <Text style={{ fontSize: 13, color: '#374151', fontStyle: 'italic' }}>"{a.commentaire}"</Text>
-                  ) : null}
-                  <View style={s.divider} />
-                </View>
-              ))}
-            </View>
-          </Card>
-        )}
-
-        {stats.avis_recents.length === 0 && (
-          <View style={s.emptyState}>
-            <Ionicons name="star-outline" size={48} color="#c4b5fd" />
-            <Text style={s.emptyText}>Aucun avis pour le moment</Text>
+        {/* ── Performances ──────────────────────────────────────── */}
+        <Text style={[s.cardTitle, { fontSize: 16 }]}>Performances</Text>
+        {!stats ? (
+          <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+            <ActivityIndicator color="#7c3aed" />
           </View>
-        )}
-      </View>
-    )
-  }
+        ) : (
+          <>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <Card style={{ flex: 1, alignItems: 'center', gap: 4 }}>
+                <Text style={{ fontSize: 28, fontWeight: '800', color: '#7c3aed' }}>{stats.rdv_completes}</Text>
+                <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'center' }}>RDV complétés</Text>
+              </Card>
+              <Card style={{ flex: 1, alignItems: 'center', gap: 4 }}>
+                <Text style={{ fontSize: 22, fontWeight: '800', color: '#059669' }}>
+                  {stats.revenus_mois.toFixed(0)}$
+                </Text>
+                <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'center' }}>Revenus mois</Text>
+              </Card>
+              <Card style={{ flex: 1, alignItems: 'center', gap: 4 }}>
+                <Text style={{ fontSize: 28, fontWeight: '800', color: '#f59e0b' }}>
+                  {stats.note_moyenne != null ? stats.note_moyenne.toFixed(1) : '—'}
+                </Text>
+                <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'center' }}>Note ★</Text>
+              </Card>
+            </View>
 
-  function GratificationsTab() {
-    return (
-      <View style={{ padding: 16, gap: 12, paddingBottom: 24 }}>
+            {stats.avis_recents.length > 0 ? (
+              <Card>
+                <Text style={s.cardTitle}>Avis récents</Text>
+                <View style={{ gap: 12, marginTop: 12 }}>
+                  {stats.avis_recents.map(a => (
+                    <View key={a.id} style={{ gap: 4 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Stars note={a.note} />
+                        <Text style={{ fontSize: 11, color: '#9ca3af' }}>{relativeTime(a.created_at)}</Text>
+                      </View>
+                      {a.commentaire ? (
+                        <Text style={{ fontSize: 13, color: '#374151', fontStyle: 'italic' }}>"{a.commentaire}"</Text>
+                      ) : null}
+                      <View style={s.divider} />
+                    </View>
+                  ))}
+                </View>
+              </Card>
+            ) : (
+              <View style={[s.emptyState, { paddingTop: 24 }]}>
+                <Ionicons name="star-outline" size={40} color="#c4b5fd" />
+                <Text style={s.emptyText}>Aucun avis pour le moment</Text>
+              </View>
+            )}
+          </>
+        )}
+
+        {/* ── Séparateur ────────────────────────────────────────── */}
+        <View style={{ height: 1, backgroundColor: '#e5e7eb', marginVertical: 4 }} />
+
+        {/* ── Gratifications ────────────────────────────────────── */}
+        <Text style={[s.cardTitle, { fontSize: 16 }]}>Gratifications</Text>
         {gratifs.length === 0 ? (
-          <View style={s.emptyState}>
-            <Text style={{ fontSize: 48 }}>🎁</Text>
+          <View style={[s.emptyState, { paddingTop: 24 }]}>
+            <Text style={{ fontSize: 40 }}>🎁</Text>
             <Text style={s.emptyText}>Aucune gratification pour l'instant</Text>
           </View>
         ) : (
-          gratifs.map(g => {
-            const cfg = GRATIF_CFG[g.type_gratif] ?? { icon: '🎁', label: g.type_gratif, color: '#7c3aed' }
-            return (
-              <Card key={g.id}>
-                <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
-                  <Text style={{ fontSize: 32 }}>{cfg.icon}</Text>
-                  <View style={{ flex: 1, gap: 4 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <View style={[s.badge, { backgroundColor: cfg.color + '20' }]}>
-                        <Text style={[s.badgeText, { color: cfg.color }]}>{cfg.label}</Text>
-                      </View>
-                      {!g.lu && (
-                        <View style={[s.badge, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
-                          <Text style={[s.badgeText, { color: '#dc2626' }]}>Nouveau</Text>
+          <View style={{ gap: 12 }}>
+            {gratifs.map(g => {
+              const cfg = GRATIF_CFG[g.type_gratif] ?? { icon: '🎁', label: g.type_gratif, color: '#7c3aed' }
+              return (
+                <Card key={g.id}>
+                  <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+                    <Text style={{ fontSize: 32 }}>{cfg.icon}</Text>
+                    <View style={{ flex: 1, gap: 4 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <View style={[s.badge, { backgroundColor: cfg.color + '20' }]}>
+                          <Text style={[s.badgeText, { color: cfg.color }]}>{cfg.label}</Text>
                         </View>
-                      )}
-                      {g.montant > 0 && (
-                        <Text style={{ fontSize: 14, fontWeight: '800', color: '#059669' }}>
-                          +{g.montant.toFixed(2)} $
-                        </Text>
-                      )}
+                        {!g.lu && (
+                          <View style={[s.badge, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
+                            <Text style={[s.badgeText, { color: '#dc2626' }]}>Nouveau</Text>
+                          </View>
+                        )}
+                        {g.montant > 0 && (
+                          <Text style={{ fontSize: 14, fontWeight: '800', color: '#059669' }}>
+                            +{g.montant.toFixed(2)} $
+                          </Text>
+                        )}
+                      </View>
+                      <Text style={{ fontSize: 14, color: '#374151' }}>{g.message}</Text>
+                      <Text style={{ fontSize: 11, color: '#9ca3af' }}>{relativeTime(g.created_at)}</Text>
                     </View>
-                    <Text style={{ fontSize: 14, color: '#374151' }}>{g.message}</Text>
-                    <Text style={{ fontSize: 11, color: '#9ca3af' }}>{relativeTime(g.created_at)}</Text>
                   </View>
-                </View>
-              </Card>
-            )
-          })
+                </Card>
+              )
+            })}
+          </View>
         )}
       </View>
     )
@@ -1279,7 +1277,7 @@ export default function EmployePortal() {
         {unreadGratif > 0 && (
           <TouchableOpacity
             style={s.gratifHeaderBtn}
-            onPress={() => switchTab('gratifications')}
+            onPress={() => switchTab('perfs_gratifs')}
           >
             <Text style={{ fontSize: 14 }}>🎁</Text>
             <Text style={{ fontSize: 11, color: '#7c3aed', fontWeight: '700' }}>{unreadGratif}</Text>
@@ -1307,8 +1305,7 @@ export default function EmployePortal() {
         {tab === 'mesrdv'            && <MesRdvTab />}
         {tab === 'demandes'          && <DemandesTab />}
         {tab === 'profil'            && <ProfilTab />}
-        {tab === 'performances'      && <PerformancesTab />}
-        {tab === 'gratifications'    && <GratificationsTab />}
+        {tab === 'perfs_gratifs'     && <PerfsGratifsTab />}
         {tab === 'notifications_rdv' && <NotificationsRdvTab />}
         {tab === 'historique_rdv'    && <HistoriqueRdvTab />}
       </ScrollView>
@@ -1321,8 +1318,7 @@ export default function EmployePortal() {
           { id: 'historique_rdv',    icon: 'time-outline',          label: 'Historique', badge: 0 },
           { id: 'demandes',          icon: 'document-text-outline', label: 'Demandes',  badge: 0 },
           { id: 'profil',            icon: 'person-outline',        label: 'Profil',    badge: 0 },
-          { id: 'performances',      icon: 'stats-chart-outline',   label: 'Perfs',     badge: 0 },
-          { id: 'gratifications',    icon: 'gift-outline',          label: 'Gratifs',   badge: unreadGratif },
+          { id: 'perfs_gratifs',     icon: 'stats-chart-outline',   label: 'Perfs+',    badge: unreadGratif },
         ] as { id: Tab; icon: string; label: string; badge: number }[]).map(t => (
           <TouchableOpacity
             key={t.id}
