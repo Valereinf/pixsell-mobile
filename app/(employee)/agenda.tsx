@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput, Image,
-  StyleSheet, ActivityIndicator, Alert, Platform, KeyboardAvoidingView,
+  Modal, StyleSheet, ActivityIndicator, Alert, Platform, KeyboardAvoidingView,
   Dimensions, useWindowDimensions, AppState, type AppStateStatus,
 } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -20,7 +20,7 @@ import type { EmployeProfile } from '../../lib/employeAuth'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type Tab = 'accueil' | 'mesrdv' | 'demandes' | 'profil' | 'perfs_gratifs' | 'notifications_rdv' | 'historique_rdv'
+type Tab = 'accueil' | 'mesrdv' | 'semaine' | 'demandes' | 'profil' | 'perfs_gratifs' | 'notifications_rdv' | 'historique_rdv'
 
 interface ResaToday {
   id: string; date_rdv: string; heure_rdv: string; service: string | null
@@ -89,6 +89,20 @@ const GRATIF_CFG: Record<string, { icon: string; label: string; color: string }>
   felicitations: { icon: '⭐', label: 'Félicitations', color: '#d97706' },
   prime:         { icon: '🏆', label: 'Prime',         color: '#7c3aed' },
 }
+
+// ── Week view constants ────────────────────────────────────────────────────────
+
+const SLOT_H      = 44
+const START_H     = 7
+const END_H       = 22
+const TOTAL_SLOTS = (END_H - START_H) * 4
+const GRID_H      = TOTAL_SLOTS * SLOT_H
+const TIME_COL_W  = 48
+
+const toMins    = (t: string) => { const [h, m] = (t || '0:0').split(':').map(Number); return h * 60 + m }
+const toTimeStr = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+const todayISO  = () => new Date().toLocaleDateString('en-CA')
+const addDays   = (d: string, n: number) => { const dt = new Date(d + 'T12:00:00'); dt.setDate(dt.getDate() + n); return dt.toLocaleDateString('en-CA') }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -222,6 +236,15 @@ export default function EmployePortal() {
   const [notifRdvList, setNotifRdvList] = useState<ResaToday[]>([])
   const [lastSeenAt, setLastSeenAt] = useState<string | null>(null)
 
+  // Week view
+  const [weekDate, setWeekDate]           = useState(todayISO)
+  const [weekResas, setWeekResas]         = useState<ResaToday[]>([])
+  const [weekLoading, setWeekLoading]     = useState(false)
+  const [nowMins, setNowMins]             = useState(() => { const n = new Date(); return n.getHours() * 60 + n.getMinutes() })
+  const [detailWeekRdv, setDetailWeekRdv] = useState<ResaToday | null>(null)
+  const { width: screenW }                = useWindowDimensions()
+  const weekScrollRef                     = useRef<ScrollView>(null)
+
   // Fetch notifications_rdv depuis Supabase quand l'onglet est actif
   useEffect(() => {
     if (tab !== 'notifications_rdv' || !employe?.id) return
@@ -332,6 +355,41 @@ export default function EmployePortal() {
     const sub = AppState.addEventListener('change', handleAppStateChange)
     return () => sub.remove()
   }, [tab])
+
+  // ── Week view data ──────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (tab !== 'semaine' || !employe?.id) return
+    const dow = (new Date(weekDate + 'T12:00:00').getDay() + 6) % 7
+    const weekMon = addDays(weekDate, -dow)
+    const weekSun = addDays(weekMon, 6)
+    setWeekLoading(true)
+    supabase
+      .from('reservations')
+      .select('id, date_rdv, heure_rdv, service, client_prenom, client_nom, statut, prix, duree_rdv')
+      .eq('employee_id', employe.id)
+      .gte('date_rdv', weekMon)
+      .lte('date_rdv', weekSun)
+      .order('heure_rdv')
+      .then(({ data }) => {
+        setWeekResas((data ?? []) as ResaToday[])
+        setWeekLoading(false)
+      })
+  }, [tab, employe?.id, weekDate])
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      const n = new Date()
+      setNowMins(n.getHours() * 60 + n.getMinutes())
+    }, 60_000)
+    return () => clearInterval(t)
+  }, [])
+
+  useEffect(() => {
+    if (weekLoading || tab !== 'semaine') return
+    const slot = Math.max(0, Math.floor((nowMins - START_H * 60) / 15) - 2)
+    setTimeout(() => weekScrollRef.current?.scrollTo({ y: slot * SLOT_H, animated: true }), 400)
+  }, [weekLoading])
 
   // Profil edit
   const [editPrenom, setEditPrenom] = useState('')
@@ -1263,6 +1321,158 @@ export default function EmployePortal() {
     )
   }
 
+  function SemaineTab() {
+    const dow      = (new Date(weekDate + 'T12:00:00').getDay() + 6) % 7
+    const weekMon  = addDays(weekDate, -dow)
+    const dates    = Array.from({ length: 7 }, (_, i) => addDays(weekMon, i))
+    const colW     = (screenW - TIME_COL_W) / 7
+    const today    = todayISO()
+
+    const weekLabel = (() => {
+      const fmt = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+      return `${fmt(dates[0])} – ${fmt(dates[6])}`
+    })()
+
+    return (
+      <View style={{ flex: 1 }}>
+        {/* Navigation */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 7, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
+          <TouchableOpacity onPress={() => setWeekDate(d => addDays(d, -7))} style={sw.navBtn}>
+            <Ionicons name="chevron-back" size={18} color="#7c3aed" />
+          </TouchableOpacity>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827' }}>{weekLabel}</Text>
+          <TouchableOpacity onPress={() => setWeekDate(d => addDays(d, 7))} style={sw.navBtn}>
+            <Ionicons name="chevron-forward" size={18} color="#7c3aed" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setWeekDate(today)} style={sw.todayBtn}>
+            <Text style={{ fontSize: 11, fontWeight: '600', color: '#7c3aed' }}>Auj.</Text>
+          </TouchableOpacity>
+        </View>
+
+        {weekLoading ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator color="#7c3aed" />
+          </View>
+        ) : (
+          <>
+            {/* Day headers */}
+            <View style={{ flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
+              <View style={{ width: TIME_COL_W }} />
+              {dates.map(date => {
+                const isToday = date === today
+                const label = new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })
+                return (
+                  <View key={date} style={{ width: colW, paddingVertical: 6, alignItems: 'center', borderRightWidth: 1, borderRightColor: 'rgba(0,0,0,0.05)', backgroundColor: isToday ? 'rgba(124,58,237,0.05)' : 'transparent' }}>
+                    <Text style={{ fontSize: 10, fontWeight: isToday ? '700' : '500', color: isToday ? '#7c3aed' : '#374151', textAlign: 'center' }}>{label}</Text>
+                  </View>
+                )
+              })}
+            </View>
+
+            {/* Time grid */}
+            <ScrollView ref={weekScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+              <View style={{ flexDirection: 'row', height: GRID_H }}>
+                {/* Time column */}
+                <View style={{ width: TIME_COL_W }}>
+                  {Array.from({ length: TOTAL_SLOTS }).map((_, i) => (
+                    <View key={i} style={{ height: SLOT_H, justifyContent: 'flex-start', alignItems: 'flex-end', paddingRight: 4, paddingTop: 2 }}>
+                      {i % 4 === 0 && <Text style={{ fontSize: 9, color: '#9ca3af', fontWeight: '500' }}>{toTimeStr(START_H * 60 + i * 15)}</Text>}
+                    </View>
+                  ))}
+                </View>
+
+                {/* Day columns */}
+                {dates.map(date => {
+                  const isToday = date === today
+                  const dayResas = weekResas.filter(r => r.date_rdv === date && r.statut !== 'cancelled')
+                  return (
+                    <View key={date} style={{ width: colW, height: GRID_H, position: 'relative', backgroundColor: isToday ? 'rgba(124,58,237,0.02)' : 'transparent' }}>
+                      {/* Grid lines */}
+                      {Array.from({ length: TOTAL_SLOTS }).map((_, i) => (
+                        <View key={i} style={{
+                          position: 'absolute', top: i * SLOT_H, left: 0, right: 0, height: SLOT_H,
+                          borderTopWidth: i % 4 === 0 ? 1 : 0.5,
+                          borderTopColor: i % 4 === 0 ? 'rgba(0,0,0,0.09)' : 'rgba(0,0,0,0.04)',
+                          borderRightWidth: 1, borderRightColor: 'rgba(0,0,0,0.05)',
+                        }} />
+                      ))}
+
+                      {/* RDV cards */}
+                      {dayResas.map(r => {
+                        const top = (toMins(r.heure_rdv) - START_H * 60) / 15 * SLOT_H
+                        const h   = Math.max(SLOT_H, ((r.duree_rdv ?? 30) / 15) * SLOT_H)
+                        const clientName = [r.client_prenom, r.client_nom].filter(Boolean).join(' ') || '—'
+                        return (
+                          <TouchableOpacity
+                            key={r.id}
+                            onPress={() => setDetailWeekRdv(r)}
+                            style={{
+                              position: 'absolute', top: top + 1, left: 2, right: 2, height: h - 2,
+                              backgroundColor: 'rgba(16,185,129,0.15)',
+                              borderLeftWidth: 3, borderLeftColor: '#059669',
+                              borderRadius: 5, padding: 3, overflow: 'hidden',
+                            }}
+                          >
+                            <Text style={{ fontSize: 9, fontWeight: '700', color: '#065f46' }} numberOfLines={1}>
+                              {r.heure_rdv?.slice(0, 5)}
+                            </Text>
+                            {h > 28 && (
+                              <Text style={{ fontSize: 9, color: '#111827', fontWeight: '600' }} numberOfLines={1}>
+                                {clientName}
+                              </Text>
+                            )}
+                            {h > 44 && r.service && (
+                              <Text style={{ fontSize: 8, color: '#6b7280' }} numberOfLines={1}>{r.service}</Text>
+                            )}
+                          </TouchableOpacity>
+                        )
+                      })}
+
+                      {/* Now line */}
+                      {isToday && nowMins >= START_H * 60 && nowMins < END_H * 60 && (
+                        <View style={{ position: 'absolute', top: (nowMins - START_H * 60) / 15 * SLOT_H, left: 0, right: 0, height: 2, backgroundColor: '#ef4444', zIndex: 20 }} />
+                      )}
+                    </View>
+                  )
+                })}
+              </View>
+            </ScrollView>
+          </>
+        )}
+
+        {/* Detail modal */}
+        {detailWeekRdv && (
+          <Modal visible animationType="slide" transparent onRequestClose={() => setDetailWeekRdv(null)}>
+            <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} activeOpacity={1} onPress={() => setDetailWeekRdv(null)} />
+            <View style={sw.detailSheet}>
+              <View style={sw.detailHandle} />
+              <Text style={sw.detailName}>
+                {[detailWeekRdv.client_prenom, detailWeekRdv.client_nom].filter(Boolean).join(' ') || 'Client'}
+              </Text>
+              {detailWeekRdv.service ? <Text style={sw.detailService}>{detailWeekRdv.service}</Text> : null}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 4 }}>
+                <Text style={sw.detailMeta}>
+                  📅 {new Date(detailWeekRdv.date_rdv + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </Text>
+                <Text style={sw.detailMeta}>🕐 {detailWeekRdv.heure_rdv?.slice(0, 5)}</Text>
+                {detailWeekRdv.duree_rdv ? <Text style={sw.detailMeta}>⏱ {detailWeekRdv.duree_rdv}min</Text> : null}
+                {detailWeekRdv.prix != null && (
+                  <Text style={[sw.detailMeta, { color: '#059669', fontWeight: '700' }]}>
+                    {Number(detailWeekRdv.prix).toFixed(2)} $
+                  </Text>
+                )}
+              </View>
+              <StatutBadge statut={detailWeekRdv.statut} />
+              <TouchableOpacity onPress={() => setDetailWeekRdv(null)} style={sw.detailCloseBtn}>
+                <Text style={{ fontWeight: '600', color: '#374151' }}>Fermer</Text>
+              </TouchableOpacity>
+            </View>
+          </Modal>
+        )}
+      </View>
+    )
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f3ff' }} edges={['top']}>
       {/* Header */}
@@ -1300,21 +1510,26 @@ export default function EmployePortal() {
       </View>
 
       {/* Content */}
-      <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
-        {tab === 'accueil'           && <AccueilTab />}
-        {tab === 'mesrdv'            && <MesRdvTab />}
-        {tab === 'demandes'          && <DemandesTab />}
-        {tab === 'profil'            && <ProfilTab />}
-        {tab === 'perfs_gratifs'     && <PerfsGratifsTab />}
-        {tab === 'notifications_rdv' && <NotificationsRdvTab />}
-        {tab === 'historique_rdv'    && <HistoriqueRdvTab />}
-      </ScrollView>
+      {tab === 'semaine' ? (
+        <SemaineTab />
+      ) : (
+        <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
+          {tab === 'accueil'           && <AccueilTab />}
+          {tab === 'mesrdv'            && <MesRdvTab />}
+          {tab === 'demandes'          && <DemandesTab />}
+          {tab === 'profil'            && <ProfilTab />}
+          {tab === 'perfs_gratifs'     && <PerfsGratifsTab />}
+          {tab === 'notifications_rdv' && <NotificationsRdvTab />}
+          {tab === 'historique_rdv'    && <HistoriqueRdvTab />}
+        </ScrollView>
+      )}
 
       {/* Bottom tab bar */}
       <View style={[s.tabBar, { paddingBottom: insets.bottom > 0 ? insets.bottom : 8 }]}>
         {([
           { id: 'accueil',           icon: 'home-outline',          label: 'Accueil',   badge: 0 },
           { id: 'mesrdv',            icon: 'calendar-outline',      label: 'Mes RDV',   badge: 0 },
+          { id: 'semaine',           icon: 'calendar-clear-outline', label: 'Semaine',  badge: 0 },
           { id: 'historique_rdv',    icon: 'time-outline',          label: 'Historique', badge: 0 },
           { id: 'demandes',          icon: 'document-text-outline', label: 'Demandes',  badge: 0 },
           { id: 'profil',            icon: 'person-outline',        label: 'Profil',    badge: 0 },
@@ -1476,4 +1691,15 @@ const s = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyText: { color: '#6b7280', fontSize: 15, fontWeight: '600' },
   divider: { height: 1, backgroundColor: '#f3f4f6', marginTop: 8 },
+})
+
+const sw = StyleSheet.create({
+  navBtn:       { width: 32, height: 32, borderRadius: 10, backgroundColor: '#ede9fe', alignItems: 'center', justifyContent: 'center' },
+  todayBtn:     { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, backgroundColor: '#ede9fe' },
+  detailSheet:  { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, gap: 10 },
+  detailHandle: { width: 40, height: 4, backgroundColor: '#e5e7eb', borderRadius: 2, alignSelf: 'center', marginBottom: 4 },
+  detailName:   { fontSize: 18, fontWeight: '800', color: '#111827' },
+  detailService:{ fontSize: 14, color: '#6b7280' },
+  detailMeta:   { fontSize: 13, color: '#374151' },
+  detailCloseBtn: { marginTop: 8, backgroundColor: '#f3f4f6', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
 })
