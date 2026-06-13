@@ -318,7 +318,7 @@ export default function ComptabiliteScreen() {
     const cid = company!.id
     const [encRes, depRes, empRes] = await Promise.all([
       supabase.from('encaissements')
-        .select('*, employes(nom)')
+        .select('*, employes!employe_id(nom)')
         .eq('company_id', cid)
         .gte('date_encaissement', start)
         .lte('date_encaissement', end)

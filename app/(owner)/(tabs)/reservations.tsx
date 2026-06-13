@@ -953,7 +953,7 @@ export default function ReservationsScreen() {
     if (!company) return
     const { data } = await supabase
       .from('reservations')
-      .select('id, client_id, client_prenom, client_nom, client_email, client_telephone, service, employee_id, date_rdv, heure_rdv, prix, statut, cancel_token, duree_rdv, note_interne, choix_direct, employes(nom)')
+      .select('id, client_id, client_prenom, client_nom, client_email, client_telephone, service, employee_id, date_rdv, heure_rdv, prix, statut, cancel_token, duree_rdv, note_interne, choix_direct, employes!employee_id(nom)')
       .eq('company_id', company.id)
       .order('date_rdv', { ascending: false })
       .order('heure_rdv', { ascending: false })
