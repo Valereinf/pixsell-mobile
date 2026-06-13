@@ -23,6 +23,8 @@ interface Resa {
   statut: string
   prix: number | null
   choix_direct?: boolean | null
+  employee_id?: string | null
+  created_at?: string | null
 }
 
 // ── Constants ────────────────────────────────────────────────────
@@ -54,7 +56,7 @@ function inits(prenom: string | null, nom: string | null) {
 async function fetchRecent(companyId: string): Promise<Resa[]> {
   const { data } = await supabase
     .from('reservations')
-    .select('id, client_prenom, client_nom, service, date_rdv, heure_rdv, statut, prix, choix_direct')
+    .select('id, client_prenom, client_nom, service, date_rdv, heure_rdv, statut, prix, choix_direct, employee_id, created_at')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false })
     .limit(30)
@@ -78,6 +80,7 @@ export default function DashboardScreen() {
   const [tauxRemplissage, setTauxRemplissage] = useState(0)
   const [minutesOccupees, setMinutesOccupees] = useState(0)
   const [minutesDispo, setMinutesDispo] = useState(0)
+  const [allEmployes, setAllEmployes] = useState<{ id: string; nom: string; prenom: string | null }[]>([])
 
   // ── Load company ─────────────────────────────────────────────
   useEffect(() => {
@@ -165,10 +168,11 @@ export default function DashboardScreen() {
 
     const { data: employes } = await supabase
       .from('employes')
-      .select('id')
+      .select('id, nom, prenom')
       .eq('company_id', companyId)
       .eq('actif', true)
 
+    setAllEmployes((employes ?? []) as { id: string; nom: string; prenom: string | null }[])
     const employeIds = (employes ?? []).map(e => e.id)
     let calcMinutesDispo = 0
 
@@ -376,8 +380,9 @@ const maxVal = Math.max(...weekData, ...prevWeekData, 1)
                         {clientName(r)}{r.choix_direct ? ' ❤️' : ''}
                       </Text>
                       <Text style={{ fontSize: 11, color: '#9ca3af' }} numberOfLines={1}>
-                        {r.service || '—'}
+                        {r.service || '—'}{r.employee_id ? ` • ✂️ ${(() => { const emp = allEmployes.find(e => e.id === r.employee_id); return emp ? [emp.prenom, emp.nom].filter(Boolean).join(' ') : '' })()}` : ''}
                       </Text>
+                      {r.created_at && <Text style={{ fontSize: 10, color: '#c4b5fd' }} numberOfLines={1}>📅 {new Date(r.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</Text>}
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
                       <Text style={{ fontSize: 11, color: '#9ca3af', marginBottom: 2 }}>

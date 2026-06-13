@@ -30,8 +30,9 @@ interface ReservationRow {
   cancel_token: string | null
   duree_rdv: number | null
   note_interne: string | null
-  employes: { nom: string }[] | null
+  employes?: { nom: string }[] | null
   choix_direct?: boolean | null
+  created_at?: string | null
 }
 
 interface ClientRow {
@@ -55,6 +56,7 @@ interface ServiceRow {
 interface EmployeRow {
   id: string
   nom: string
+  prenom?: string | null
   duree_ajustement_pct?: number | null
 }
 
@@ -142,14 +144,18 @@ function generateSlots(debut: string, fin: string, duree: number): string[] {
   return out
 }
 
-async function shareCSV(rows: ReservationRow[]) {
+async function shareCSV(rows: ReservationRow[], allEmployes: EmployeRow[]) {
   const headers = ['Client', 'Téléphone', 'Service', 'Employé', 'Date', 'Heure', 'Prix', 'Statut']
   const esc = (v: string) => `"${v.replace(/"/g, '""')}"`
-  const lines = rows.map(r => [
-    clientName(r), r.client_telephone ?? '', r.service ?? '',
-    r.employes?.[0]?.nom ?? '', r.date_rdv, r.heure_rdv?.slice(0, 5) ?? '',
-    r.prix != null ? `${r.prix}` : '', STATUS[r.statut]?.label ?? r.statut,
-  ].map(v => esc(String(v))).join(','))
+  const lines = rows.map(r => {
+    const emp = allEmployes.find(e => e.id === r.employee_id)
+    const empName = emp ? [emp.prenom, emp.nom].filter(Boolean).join(' ') : ''
+    return [
+      clientName(r), r.client_telephone ?? '', r.service ?? '',
+      empName, r.date_rdv, r.heure_rdv?.slice(0, 5) ?? '',
+      r.prix != null ? `${r.prix}` : '', STATUS[r.statut]?.label ?? r.statut,
+    ].map(v => esc(String(v))).join(',')
+  })
   const csv = [headers.join(','), ...lines].join('\n')
   await Share.share({ message: csv, title: `reservations-${todayISO()}.csv` })
 }
@@ -178,12 +184,13 @@ function StatusBadge({ statut }: { statut: Statut }) {
 interface DetailModalProps {
   row: ReservationRow
   companyId: string
+  allEmployes: EmployeRow[]
   onClose: () => void
   onStatusChange: (id: string, statut: Statut) => Promise<void>
   onUpdate: (id: string, patch: Partial<ReservationRow>) => void
 }
 
-function DetailModal({ row, companyId, onClose, onStatusChange, onUpdate }: DetailModalProps) {
+function DetailModal({ row, companyId, allEmployes, onClose, onStatusChange, onUpdate }: DetailModalProps) {
   const [client, setClient] = useState<ClientRow | null>(null)
   const [history, setHistory] = useState<{ id: string; date_rdv: string; service: string | null; statut: string }[]>([])
   const [note, setNote] = useState('')
@@ -412,11 +419,17 @@ function DetailModal({ row, companyId, onClose, onStatusChange, onUpdate }: Deta
                     <View style={s.divider} />
                     <InfoRow label="Service" value={row.service ?? '—'} />
                     <View style={s.divider} />
-                    <InfoRow label="Employé" value={row.employes?.[0]?.nom ?? '—'} />
+                    <InfoRow label="Barbier" value={(() => { const emp = allEmployes.find(e => e.id === row.employee_id); return `${emp ? [emp.prenom, emp.nom].filter(Boolean).join(' ') : 'Non assigné'}${row.choix_direct ? ' ❤️' : ''}` })()} />
                     <View style={s.divider} />
                     <InfoRow label="Durée" value={row.duree_rdv ? `${row.duree_rdv} min` : '—'} />
                     <View style={s.divider} />
                     <InfoRow label="Prix" value={row.prix != null ? `${row.prix} $` : '—'} />
+                    {row.created_at ? (
+                      <>
+                        <View style={s.divider} />
+                        <InfoRow label="Réservé le" value={new Date(row.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) + ' à ' + new Date(row.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} />
+                      </>
+                    ) : null}
                     <View style={s.divider} />
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                       <Text style={{ fontSize: 13, color: '#6b7280' }}>Statut</Text>
@@ -928,6 +941,7 @@ function BookingModal({ company, onClose, onCreated }: BookingModalProps) {
 export default function ReservationsScreen() {
   const [company, setCompany]       = useState<Company | null>(null)
   const [rows, setRows]             = useState<ReservationRow[]>([])
+  const [allEmployes, setAllEmployes] = useState<EmployeRow[]>([])
   const [loading, setLoading]       = useState(true)
   const [activeFilter, setActiveFilter] = useState<QuickFilter>('aujourd_hui')
   const [search, setSearch]         = useState('')
@@ -951,13 +965,17 @@ export default function ReservationsScreen() {
   // ── Load reservations ──────────────────────────────────────────
   const load = useCallback(async () => {
     if (!company) return
-    const { data } = await supabase
-      .from('reservations')
-      .select('id, client_id, client_prenom, client_nom, client_email, client_telephone, service, employee_id, date_rdv, heure_rdv, prix, statut, cancel_token, duree_rdv, note_interne, choix_direct, employes!employee_id(nom)')
-      .eq('company_id', company.id)
-      .order('date_rdv', { ascending: false })
-      .order('heure_rdv', { ascending: false })
+    const [{ data }, { data: empData }] = await Promise.all([
+      supabase
+        .from('reservations')
+        .select('id, client_id, client_prenom, client_nom, client_email, client_telephone, service, employee_id, date_rdv, heure_rdv, prix, statut, cancel_token, duree_rdv, note_interne, choix_direct, created_at')
+        .eq('company_id', company.id)
+        .order('date_rdv', { ascending: false })
+        .order('heure_rdv', { ascending: false }),
+      supabase.from('employes').select('id, nom, prenom').eq('company_id', company.id).eq('actif', true),
+    ])
     setRows((data ?? []) as ReservationRow[])
+    setAllEmployes((empData ?? []) as EmployeRow[])
     setLoading(false)
   }, [company?.id])
 
@@ -1058,7 +1076,7 @@ export default function ReservationsScreen() {
             <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827' }}>Réservations</Text>
             <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>{rows.length} au total</Text>
           </View>
-          <TouchableOpacity onPress={() => shareCSV(filtered)} style={s.exportBtn}>
+          <TouchableOpacity onPress={() => shareCSV(filtered, allEmployes)} style={s.exportBtn}>
             <Ionicons name="download-outline" size={14} color="#7c3aed" />
             <Text style={{ fontSize: 12, color: '#7c3aed', fontWeight: '500' }}>Exporter</Text>
           </TouchableOpacity>
@@ -1141,18 +1159,23 @@ export default function ReservationsScreen() {
                 </View>
 
                 {/* Row 2: service + employee */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 6 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
                     <Ionicons name="cut-outline" size={12} color="#9ca3af" />
                     <Text style={{ fontSize: 13, color: '#6b7280' }} numberOfLines={1}>{r.service || '—'}</Text>
                   </View>
-                  {r.employes?.[0]?.nom ? (
+                  {(() => { const emp = allEmployes.find(e => e.id === r.employee_id); return emp ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <Ionicons name="person-outline" size={12} color="#9ca3af" />
-                      <Text style={{ fontSize: 13, color: '#6b7280' }} numberOfLines={1}>{r.employes[0].nom}</Text>
+                      <Text style={{ fontSize: 12, color: '#6b7280' }}>✂️</Text>
+                      <Text style={{ fontSize: 12, color: '#6b7280' }} numberOfLines={1}>{[emp.prenom, emp.nom].filter(Boolean).join(' ')}</Text>
                     </View>
-                  ) : null}
+                  ) : null })()}
                 </View>
+                {r.created_at ? (
+                  <Text style={{ fontSize: 11, color: '#9ca3af', fontStyle: 'italic', marginBottom: 8 }}>
+                    📅 Réservé le {new Date(r.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} à {new Date(r.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                ) : null}
 
                 {/* Row 3: date + price + actions */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1197,6 +1220,7 @@ export default function ReservationsScreen() {
         <DetailModal
           row={detailRow}
           companyId={company.id}
+          allEmployes={allEmployes}
           onClose={() => setDetailRow(null)}
           onStatusChange={updateStatut}
           onUpdate={(id, patch) => {

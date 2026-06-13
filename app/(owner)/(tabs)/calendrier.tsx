@@ -40,11 +40,13 @@ interface Resa {
   statut: Statut
   cancel_token: string | null
   choix_direct?: boolean | null
+  created_at?: string | null
 }
 
 interface Employe {
   id: string
   nom: string
+  prenom?: string | null
   photo_url: string | null
   titre: string | null
   couleur_agenda: string | null
@@ -158,7 +160,7 @@ export default function CalendrierScreen() {
   useEffect(() => {
     if (!company) return
     Promise.all([
-      supabase.from('employes').select('id, nom, photo_url, titre, couleur_agenda').eq('company_id', company.id).eq('actif', true).order('nom'),
+      supabase.from('employes').select('id, nom, prenom, photo_url, titre, couleur_agenda').eq('company_id', company.id).eq('actif', true).order('nom'),
       supabase.from('services_catalogue').select('id, nom, prix, duree_minutes').eq('company_id', company.id).eq('actif', true).order('ordre', { ascending: true }),
     ]).then(([{ data: emps }, { data: svcs }]) => {
       const empList = (emps ?? []) as Employe[]
@@ -179,7 +181,7 @@ export default function CalendrierScreen() {
 
     const [{ data: resaData }, { data: absData }] = await Promise.all([
       supabase.from('reservations')
-        .select('id, client_id, client_prenom, client_nom, client_telephone, client_email, service, employee_id, date_rdv, heure_rdv, duree_rdv, prix, statut, cancel_token, choix_direct')
+        .select('id, client_id, client_prenom, client_nom, client_telephone, client_email, service, employee_id, date_rdv, heure_rdv, duree_rdv, prix, statut, cancel_token, choix_direct, created_at')
         .eq('company_id', company.id)
         .gte('date_rdv', dateFrom).lte('date_rdv', dateTo)
         .order('heure_rdv'),
@@ -397,6 +399,7 @@ export default function CalendrierScreen() {
               </Text>
               {h > 36 && <Text style={{ fontSize: 10, color: '#6b7280' }} numberOfLines={1}>{r.service}</Text>}
               {h > 52 && <Text style={{ fontSize: 10, color: '#9ca3af' }}>{r.heure_rdv?.slice(0, 5)}</Text>}
+              {h > 68 && r.created_at && <Text style={{ fontSize: 9, color: '#9ca3af' }} numberOfLines={1}>📅 {new Date(r.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</Text>}
             </TouchableOpacity>
           )
         })}
@@ -717,6 +720,8 @@ export default function CalendrierScreen() {
               <View style={s.detailRow}><Ionicons name="cut-outline" size={16} color="#7c3aed" /><Text style={s.detailText}>{detailResa.service || '—'}</Text></View>
               <View style={s.detailRow}><Ionicons name="time-outline" size={16} color="#7c3aed" /><Text style={s.detailText}>{detailResa.date_rdv} à {detailResa.heure_rdv?.slice(0, 5)} ({detailResa.duree_rdv ?? '?'} min)</Text></View>
               {detailResa.prix != null && <View style={s.detailRow}><Ionicons name="cash-outline" size={16} color="#7c3aed" /><Text style={s.detailText}>{detailResa.prix} $</Text></View>}
+              <View style={s.detailRow}><Ionicons name="cut-sharp" size={16} color="#7c3aed" /><Text style={s.detailText}>✂️ {(() => { const emp = employes.find(e => e.id === detailResa.employee_id); return emp ? [emp.prenom, emp.nom].filter(Boolean).join(' ') : 'Non assigné' })()}</Text></View>
+              {detailResa.created_at && <View style={s.detailRow}><Ionicons name="calendar-outline" size={16} color="#7c3aed" /><Text style={s.detailText}>📅 Réservé le {new Date(detailResa.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })} à {new Date(detailResa.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</Text></View>}
               <View style={[s.detailRow, { marginTop: 4 }]}>
                 <View style={{ backgroundColor: ST[detailResa.statut].bg, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
                   <Text style={{ fontSize: 12, fontWeight: '600', color: ST[detailResa.statut].color }}>{ST[detailResa.statut].label}</Text>

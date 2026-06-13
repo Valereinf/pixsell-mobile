@@ -26,7 +26,7 @@ interface ResaToday {
   id: string; date_rdv: string; heure_rdv: string; service: string | null
   client_prenom: string | null; client_nom: string | null
   statut: string; prix: string | number | null; duree_rdv: number | null
-  choix_direct?: boolean | null
+  choix_direct?: boolean | null; created_at?: string | null
 }
 
 interface DemandeRH {
@@ -191,6 +191,7 @@ function RdvCard({ r }: { r: ResaToday }) {
           <StatutBadge statut={r.statut} />
           {r.prix != null && <Text style={s.rdvPrix}>{Number(r.prix).toFixed(2)} $</Text>}
         </View>
+        {r.created_at && <Text style={{ fontSize: 10, color: '#c4b5fd' }}>📅 Réservé le {new Date(r.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>}
       </View>
     </View>
   )
@@ -251,7 +252,7 @@ export default function EmployePortal() {
     if (tab !== 'notifications_rdv' || !employe?.id) return
     supabase
       .from('reservations')
-      .select('id, date_rdv, heure_rdv, service, client_prenom, client_nom, statut, prix, duree_rdv, choix_direct')
+      .select('id, date_rdv, heure_rdv, service, client_prenom, client_nom, statut, prix, duree_rdv, choix_direct, created_at')
       .eq('employee_id', employe.id)   // colonne correcte : employee_id (deux e)
       .order('created_at', { ascending: false })
       .limit(30)
@@ -367,7 +368,7 @@ export default function EmployePortal() {
     setWeekLoading(true)
     supabase
       .from('reservations')
-      .select('id, date_rdv, heure_rdv, service, client_prenom, client_nom, statut, prix, duree_rdv, choix_direct')
+      .select('id, date_rdv, heure_rdv, service, client_prenom, client_nom, statut, prix, duree_rdv, choix_direct, created_at')
       .eq('employee_id', employe.id)
       .gte('date_rdv', weekMon)
       .lte('date_rdv', weekSun)

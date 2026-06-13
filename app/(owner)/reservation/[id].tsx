@@ -23,6 +23,7 @@ interface ResaDetail {
   client_nom: string | null
   client_email: string | null
   choix_direct?: boolean | null
+  created_at?: string | null
 }
 
 interface HistoResa {
@@ -69,7 +70,7 @@ export default function ReservationDetailScreen() {
       // 1. Fetch réservation
       const { data: resaData } = await supabase
         .from('reservations')
-        .select('id, company_id, date_rdv, heure_rdv, service, employee_id, duree_rdv, prix, statut, client_prenom, client_nom, client_email, choix_direct')
+        .select('id, company_id, date_rdv, heure_rdv, service, employee_id, duree_rdv, prix, statut, client_prenom, client_nom, client_email, choix_direct, created_at')
         .eq('id', id)
         .single()
 
@@ -173,11 +174,14 @@ export default function ReservationDetailScreen() {
           <Row icon="cash-outline" label="Prix">
             <Text style={s.rowValue}>{resa.prix != null ? `${Number(resa.prix).toFixed(2)} $` : '—'}</Text>
           </Row>
-          <Row icon="flag-outline" label="Statut" last>
+          <Row icon="flag-outline" label="Statut">
             <View style={{ backgroundColor: sc.bg, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}>
               <Text style={{ fontSize: 12, fontWeight: '700', color: sc.color }}>{sc.label}</Text>
             </View>
           </Row>
+          {resa.created_at && <Row icon="calendar-outline" label="Réservé le" last>
+            <Text style={s.rowValue}>{new Date(resa.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })} à {new Date(resa.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</Text>
+          </Row>}
         </View>
 
         {/* ── Section CLIENT ── */}
