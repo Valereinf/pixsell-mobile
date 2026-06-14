@@ -87,13 +87,13 @@ export default function DashboardScreen() {
   useEffect(() => {
     const load = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) { router.replace('/(auth)/login'); return }
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session?.user) { router.replace('/(auth)/login'); return }
 
         const { data, error } = await supabase
           .from('companies')
           .select('*')
-          .eq('owner_email', user.email)
+          .eq('owner_email', session.user.email)
           .single()
 
         if (error || !data) {
@@ -104,7 +104,7 @@ export default function DashboardScreen() {
 
         setCompany(data as Company)
         setContextCompany(data as Company)
-        const meta = user.user_metadata ?? {}
+        const meta = session.user.user_metadata ?? {}
         const name = (meta.full_name as string | undefined)
           || (meta.name as string | undefined)
           || ''

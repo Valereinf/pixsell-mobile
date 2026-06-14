@@ -163,9 +163,9 @@ export default function ClientsScreen() {
 
   // ── Load company ───────────────────────────────────────────────
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return
-      supabase.from('companies').select('id').eq('owner_email', user.email).single()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) return
+      supabase.from('companies').select('id').eq('owner_email', session.user.email).single()
         .then(({ data }) => { if (data) setCompany(data as { id: string }) })
     })
   }, [])

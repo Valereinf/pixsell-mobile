@@ -93,9 +93,11 @@ export default function RootLayout() {
   }, [])
 
   useEffect(() => {
-    const sub = AppState.addEventListener('change', async (state) => {
+    const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        await supabase.auth.refreshSession()
+        supabase.auth.startAutoRefresh()
+      } else {
+        supabase.auth.stopAutoRefresh()
       }
     })
     return () => sub.remove()

@@ -145,9 +145,9 @@ export default function MarketingScreen() {
 
   useEffect(() => {
     if (ctxCompany) { setCompany(ctxCompany); return }
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return
-      supabase.from('companies').select('*').eq('owner_email', user.email).single()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) return
+      supabase.from('companies').select('*').eq('owner_email', session.user.email).single()
         .then(({ data }) => { if (data) setCompany(data as Company) })
     })
   }, [ctxCompany])
