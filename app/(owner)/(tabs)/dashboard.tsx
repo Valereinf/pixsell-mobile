@@ -81,6 +81,7 @@ export default function DashboardScreen() {
   const [minutesOccupees, setMinutesOccupees] = useState(0)
   const [minutesDispo, setMinutesDispo] = useState(0)
   const [allEmployes, setAllEmployes] = useState<{ id: string; nom: string; prenom: string | null }[]>([])
+  const [allServices, setAllServices] = useState<{ id: string; nom: string; couleur: string | null }[]>([])
 
   // ── Load company ─────────────────────────────────────────────
   useEffect(() => {
@@ -247,6 +248,15 @@ export default function DashboardScreen() {
     loadStats(company.id)
   }, [company?.id])
 
+  // ── Load services (couleur par service) ──────────────────────
+  useEffect(() => {
+    if (!company?.id) return
+    supabase.from('services_catalogue')
+      .select('id, nom, couleur')
+      .eq('company_id', company.id)
+      .then(({ data }) => setAllServices((data ?? []) as { id: string; nom: string; couleur: string | null }[]))
+  }, [company?.id])
+
   // ── Realtime subscription — activités récentes + reconnexion foreground ──
   useEffect(() => {
     if (!company?.id) return
@@ -357,7 +367,9 @@ const maxVal = Math.max(...weekData, ...prevWeekData, 1)
           ) : (
             <ScrollView style={{ maxHeight: 420 }} nestedScrollEnabled={true} showsVerticalScrollIndicator={false}>
               {recent.map((r, i) => {
-                const sc = STATUS_COLOR[r.statut] ?? STATUS_COLOR.pending
+                const sc           = STATUS_COLOR[r.statut] ?? STATUS_COLOR.pending
+                const showSvcColor = company?.couleur_service_enabled !== false
+                const svcColor     = allServices.find(sv => sv.nom === r.service)?.couleur ?? null
                 return (
                   <TouchableOpacity
                     key={r.id}
@@ -366,8 +378,13 @@ const maxVal = Math.max(...weekData, ...prevWeekData, 1)
                     style={{
                       flexDirection: 'row', alignItems: 'center', gap: 10,
                       paddingVertical: 8,
+                      paddingLeft: showSvcColor && svcColor ? 6 : 0,
                       borderBottomWidth: i < recent.length - 1 ? 1 : 0,
                       borderBottomColor: 'rgba(0,0,0,0.05)',
+                      backgroundColor: showSvcColor && svcColor ? `${svcColor}18` : 'transparent',
+                      borderLeftWidth: showSvcColor && svcColor ? 3 : 0,
+                      borderLeftColor: svcColor ?? 'transparent',
+                      borderRadius: 4,
                     }}
                   >
                     <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center' }}>

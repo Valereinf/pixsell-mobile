@@ -51,6 +51,7 @@ interface ServiceRow {
   nom: string
   prix: number
   duree_minutes: number
+  couleur?: string | null
 }
 
 interface EmployeRow {
@@ -61,7 +62,7 @@ interface EmployeRow {
 }
 
 type HoraireDay = { ouvert: boolean; debut: string; fin: string }
-type Company = { id: string; horaires?: Record<string, HoraireDay> | null }
+type Company = { id: string; horaires?: Record<string, HoraireDay> | null; couleur_service_enabled?: boolean | null }
 
 // ── Helpers ──────────────────────────────────────────────────────
 function isInNoShowWindow(dateRdv: string, heureRdv: string, dureeMinutes: number | null): boolean {
@@ -942,6 +943,7 @@ export default function ReservationsScreen() {
   const [company, setCompany]       = useState<Company | null>(null)
   const [rows, setRows]             = useState<ReservationRow[]>([])
   const [allEmployes, setAllEmployes] = useState<EmployeRow[]>([])
+  const [allServices, setAllServices] = useState<ServiceRow[]>([])
   const [loading, setLoading]       = useState(true)
   const [activeFilter, setActiveFilter] = useState<QuickFilter>('aujourd_hui')
   const [search, setSearch]         = useState('')
@@ -957,7 +959,7 @@ export default function ReservationsScreen() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
-      supabase.from('companies').select('id, horaires').eq('owner_email', user.email).single()
+      supabase.from('companies').select('id, horaires, couleur_service_enabled').eq('owner_email', user.email).single()
         .then(({ data }) => { if (data) setCompany(data as Company) })
     })
   }, [])
@@ -965,7 +967,7 @@ export default function ReservationsScreen() {
   // ── Load reservations ──────────────────────────────────────────
   const load = useCallback(async () => {
     if (!company) return
-    const [{ data }, { data: empData }] = await Promise.all([
+    const [{ data }, { data: empData }, { data: svcData }] = await Promise.all([
       supabase
         .from('reservations')
         .select('id, client_id, client_prenom, client_nom, client_email, client_telephone, service, employee_id, date_rdv, heure_rdv, prix, statut, cancel_token, duree_rdv, note_interne, choix_direct, created_at')
@@ -973,9 +975,11 @@ export default function ReservationsScreen() {
         .order('date_rdv', { ascending: false })
         .order('heure_rdv', { ascending: false }),
       supabase.from('employes').select('id, nom, prenom').eq('company_id', company.id).eq('actif', true),
+      supabase.from('services_catalogue').select('id, nom, prix, duree_minutes, couleur').eq('company_id', company.id),
     ])
     setRows((data ?? []) as ReservationRow[])
     setAllEmployes((empData ?? []) as EmployeRow[])
+    setAllServices((svcData ?? []) as ServiceRow[])
     setLoading(false)
   }, [company?.id])
 
@@ -1140,14 +1144,21 @@ export default function ReservationsScreen() {
           </View>
         ) : (
           filtered.map(r => {
-            const st       = STATUS[r.statut]
-            const isActive = r.statut === 'pending' || r.statut === 'confirmed'
+            const st           = STATUS[r.statut]
+            const isActive     = r.statut === 'pending' || r.statut === 'confirmed'
+            const showSvcColor = company?.couleur_service_enabled !== false
+            const svcColor     = allServices.find(sv => sv.nom === r.service)?.couleur ?? null
             return (
               <TouchableOpacity
                 key={r.id}
                 onPress={() => setDetailRow(r)}
                 activeOpacity={0.8}
-                style={[s.card, { marginHorizontal: 16, marginBottom: 10 }]}
+                style={[s.card, {
+                  marginHorizontal: 16, marginBottom: 10,
+                  backgroundColor: showSvcColor && svcColor ? `${svcColor}18` : 'rgba(255,255,255,0.9)',
+                  borderLeftWidth: showSvcColor && svcColor ? 3 : 0,
+                  borderLeftColor: svcColor ?? 'transparent',
+                }]}
               >
                 {/* Row 1: client + status */}
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>

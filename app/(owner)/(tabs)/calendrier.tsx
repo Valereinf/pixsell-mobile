@@ -57,6 +57,7 @@ interface Svc {
   nom: string
   prix: number
   duree_minutes: number
+  couleur?: string | null
 }
 
 interface Cli {
@@ -110,7 +111,7 @@ const empColor = (emp: Employe | undefined, idx: number) =>
 
 // ── Main component ───────────────────────────────────────────────
 export default function CalendrierScreen() {
-  const [company, setCompany] = useState<{ id: string } | null>(null)
+  const [company, setCompany] = useState<{ id: string; couleur_service_enabled?: boolean | null } | null>(null)
   const [employes, setEmployes] = useState<Employe[]>([])
   const [services, setServices] = useState<Svc[]>([])
   const [resas, setResas] = useState<Resa[]>([])
@@ -151,7 +152,7 @@ export default function CalendrierScreen() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
-      supabase.from('companies').select('id').eq('owner_email', user.email).single()
+      supabase.from('companies').select('id, couleur_service_enabled').eq('owner_email', user.email).single()
         .then(({ data }) => { if (data) setCompany(data) })
     })
   }, [])
@@ -161,7 +162,7 @@ export default function CalendrierScreen() {
     if (!company) return
     Promise.all([
       supabase.from('employes').select('id, nom, prenom, photo_url, titre, couleur_agenda').eq('company_id', company.id).eq('actif', true).order('nom'),
-      supabase.from('services_catalogue').select('id, nom, prix, duree_minutes').eq('company_id', company.id).eq('actif', true).order('ordre', { ascending: true }),
+      supabase.from('services_catalogue').select('id, nom, prix, duree_minutes, couleur').eq('company_id', company.id).eq('actif', true).order('ordre', { ascending: true }),
     ]).then(([{ data: emps }, { data: svcs }]) => {
       const empList = (emps ?? []) as Employe[]
       setEmployes(empList)
@@ -385,13 +386,17 @@ export default function CalendrierScreen() {
 
         {/* Reservations */}
         {dayResas.filter(r => r.statut !== 'cancelled').map(r => {
-          const top = (toMins(r.heure_rdv) - START_H * 60) / 15 * SLOT_H
-          const h   = Math.max(SLOT_H, ((r.duree_rdv ?? 30) / 15) * SLOT_H)
-          const st  = ST[r.statut]
+          const top          = (toMins(r.heure_rdv) - START_H * 60) / 15 * SLOT_H
+          const h            = Math.max(SLOT_H, ((r.duree_rdv ?? 30) / 15) * SLOT_H)
+          const st           = ST[r.statut]
+          const showSvcColor = company?.couleur_service_enabled !== false
+          const svcColor     = services.find(s => s.nom === r.service)?.couleur ?? null
           return (
             <TouchableOpacity key={r.id} onPress={() => setDetailResa(r)} style={{
               position: 'absolute', top: top + 1, left: 3, right: 3, height: h - 2,
-              backgroundColor: st.bg, borderLeftWidth: 3, borderLeftColor: color,
+              backgroundColor: showSvcColor && svcColor ? `${svcColor}18` : st.bg,
+              borderLeftWidth: 3,
+              borderLeftColor: showSvcColor && svcColor ? svcColor : color,
               borderRadius: 6, padding: 4, overflow: 'hidden',
             }}>
               <Text style={{ fontSize: 11, fontWeight: '700', color: '#111827' }} numberOfLines={1}>
