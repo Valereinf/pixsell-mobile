@@ -7,7 +7,7 @@
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@supabase/supabase-js": "^2.107.0",
     "expo": "~56.0.8",
-    "expo-blur": "~56.0.3",
+    "expo-build-properties": "~56.0.19",
     "expo-clipboard": "^56.0.3",
     "expo-constants": "~56.0.16",
     "expo-device": "~56.0.4",
@@ -31,8 +31,8 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
-    "typescript": "~6.0.3",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start",
