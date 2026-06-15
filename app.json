@@ -64,6 +64,14 @@
           "color": "#6B46C1",
           "sounds": []
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraMavenRepos": ["https://repo1.maven.org/maven2"]
+          }
+        }
       ]
     ],
     "experiments": {
