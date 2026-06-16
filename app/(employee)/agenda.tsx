@@ -329,7 +329,7 @@ export default function EmployePortal() {
   // Pauses du jour
   useEffect(() => {
     if (!employe?.id || !employe?.company_id) return
-    const DAY_NAMES = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']
+    const DAY_NAMES = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam']
     const todayKey  = DAY_NAMES[new Date().getDay()]
     const todayDate = todayISO()
     supabase
