@@ -237,6 +237,7 @@ export default function EmployePortal() {
   const [gratifs, setGratifs] = useState<Gratif[]>([])
   const [notifRdvList, setNotifRdvList] = useState<ResaToday[]>([])
   const [lastSeenAt, setLastSeenAt] = useState<string | null>(null)
+  const [todayPausesStr, setTodayPausesStr] = useState<string | null>(null)
 
   // Week view
   const [weekDate, setWeekDate]           = useState(todayISO)
@@ -324,6 +325,31 @@ export default function EmployePortal() {
       if (gratifChannel) supabase.removeChannel(gratifChannel)
     }
   }, [employe?.id])
+
+  // Pauses du jour
+  useEffect(() => {
+    if (!employe?.id || !employe?.company_id) return
+    const DAY_NAMES = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']
+    const todayKey  = DAY_NAMES[new Date().getDay()]
+    const todayDate = todayISO()
+    supabase
+      .from('employe_horaires')
+      .select('horaires')
+      .eq('employe_id', employe.id)
+      .eq('company_id', employe.company_id)
+      .single()
+      .then(({ data }) => {
+        type Pause = { debut: string; fin: string; type: string; dates?: string[] | null }
+        const dayHoraires = (data?.horaires as Record<string, { pauses?: Pause[] }> | null)?.[todayKey]
+        const pauses = dayHoraires?.pauses ?? []
+        const active = pauses.filter(p =>
+          p.type === 'recurrente' || (p.type === 'ponctuelle' && Array.isArray(p.dates) && p.dates.includes(todayDate))
+        )
+        if (!active.length) { setTodayPausesStr(null); return }
+        const fmt = (t: string) => { const [h, m] = t.split(':'); return `${h}H${m ?? '00'}` }
+        setTodayPausesStr('Pause : ' + active.map(p => `${fmt(p.debut)} - ${fmt(p.fin)}`).join(' / '))
+      })
+  }, [employe?.id, employe?.company_id])
 
   // AppState — re-fetch session au retour foreground
   useEffect(() => {
@@ -722,6 +748,9 @@ export default function EmployePortal() {
             {` ${employe?.prenom ?? employe?.nom ?? ''} 👋`}
           </Text>
           <Text style={{ color: '#6b7280', marginTop: 2, textTransform: 'capitalize' }}>{todayLabel}</Text>
+          {todayPausesStr && (
+            <Text style={{ color: '#374151', marginTop: 4, fontWeight: 'bold' }}>{todayPausesStr}</Text>
+          )}
         </View>
 
         {/* Status + RDV count */}
