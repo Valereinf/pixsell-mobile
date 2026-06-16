@@ -742,7 +742,7 @@ export default function EmployePortal() {
     return (
       <View style={{ padding: 16, gap: 16, paddingBottom: 24 }}>
         {/* Greeting */}
-        <View>
+        <Card>
           <Text style={{ fontSize: 22, fontWeight: '800', color: '#111827' }}>
             <Text style={{ color: '#F9A310' }}>Bonjour</Text>
             {` ${employe?.prenom ?? employe?.nom ?? ''} 👋`}
@@ -751,7 +751,7 @@ export default function EmployePortal() {
           {todayPausesStr && (
             <Text style={{ color: '#374151', marginTop: 4, fontWeight: 'bold' }}>{todayPausesStr}</Text>
           )}
-        </View>
+        </Card>
 
         {/* Status + RDV count */}
         <View style={{ flexDirection: 'row', gap: 12 }}>
