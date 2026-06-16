@@ -343,7 +343,7 @@ export default function EmployePortal() {
         const dayHoraires = (data?.horaires as Record<string, { pauses?: Pause[] }> | null)?.[todayKey]
         const pauses = dayHoraires?.pauses ?? []
         const active = pauses.filter(p =>
-          p.type === 'recurrente' || (p.type === 'ponctuelle' && Array.isArray(p.dates) && p.dates.includes(todayDate))
+          !p.type || p.type === 'recurrente' || (p.type === 'ponctuelle' && Array.isArray(p.dates) && p.dates.includes(todayDate))
         )
         if (!active.length) { setTodayPausesStr(null); return }
         const fmt = (t: string) => { const [h, m] = t.split(':'); return `${h}H${m ?? '00'}` }
