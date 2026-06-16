@@ -18,7 +18,21 @@ type TypeDemande = 'conge' | 'maladie' | 'permission' | 'changement_horaire' | '
 type JourKey = 'dim' | 'lun' | 'mar' | 'mer' | 'jeu' | 'ven' | 'sam'
 
 interface Employe { id: string; nom: string; photo_url: string | null; couleur_agenda?: string | null }
-interface Pause { id: string; debut: string; fin: string }
+interface Pause {
+  id: string
+  debut: string
+  fin: string
+  type: 'recurrente' | 'ponctuelle'
+  dates: string[] | null
+}
+interface PauseModalState {
+  empId: string
+  jour: JourKey
+  debut: string
+  fin: string
+  type: 'recurrente' | 'ponctuelle'
+  dates: string[]
+}
 interface JourHoraire { actif: boolean; debut: string; fin: string; pauses: Pause[] }
 interface Exception { id: string; debut: string; fin: string; raison: string }
 type WeeklyHoraires = Record<JourKey, JourHoraire>
@@ -85,6 +99,23 @@ const TYPE_DEMANDE_OPTIONS = Object.entries(TYPE_DEMANDE_LABELS) as [TypeDemande
 function todayISO() { return new Date().toLocaleDateString('en-CA') }
 const uid = () => Math.random().toString(36).slice(2)
 
+const JOUR_TO_DOW: Record<JourKey, number> = {
+  dim: 0, lun: 1, mar: 2, mer: 3, jeu: 4, ven: 5, sam: 6,
+}
+
+function getUpcomingDates(jourKey: JourKey, tz: string, count = 12): string[] {
+  const dow = JOUR_TO_DOW[jourKey]
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: tz })
+  const d = new Date(todayStr + 'T12:00:00')
+  while (d.getDay() !== dow) d.setDate(d.getDate() + 1)
+  const result: string[] = []
+  for (let i = 0; i < count; i++) {
+    result.push(d.toLocaleDateString('en-CA'))
+    d.setDate(d.getDate() + 7)
+  }
+  return result
+}
+
 function getWeekStart(d: Date): Date {
   const dow = d.getDay()
   const diff = dow === 0 ? -6 : 1 - dow
@@ -127,7 +158,13 @@ function parseHoraires(raw: Record<string, unknown> | null): WeeklyHoraires {
     return [k, {
       actif: d.actif ?? (k !== 'dim' && k !== 'sam'),
       debut: d.debut ?? '09:00', fin: d.fin ?? '18:00',
-      pauses: (d.pauses ?? []).map(p => ({ id: p.id ?? uid(), debut: p.debut ?? '12:00', fin: p.fin ?? '13:00' })),
+      pauses: (d.pauses ?? []).map(p => ({
+        id:    p.id    ?? uid(),
+        debut: p.debut ?? '12:00',
+        fin:   p.fin   ?? '13:00',
+        type:  (p as Partial<Pause>).type  ?? 'recurrente',
+        dates: (p as Partial<Pause>).dates ?? null,
+      })),
     }]
   })) as WeeklyHoraires
 }
@@ -237,6 +274,8 @@ export default function AgendaCollabScreen() {
   const [gratMontant, setGratMontant] = useState('')
   const [gratMsg, setGratMsg]     = useState('')
   const [gratSaving, setGratSaving] = useState(false)
+
+  const [pauseModal, setPauseModal] = useState<PauseModalState | null>(null)
 
   // Sélection multiple calendrier
   const [selectedCells, setSelectedCells] = useState<{ empId: string; date: string }[]>([])
@@ -374,14 +413,25 @@ export default function AgendaCollabScreen() {
     })
   }
 
-  function addPause(empId: string, jour: JourKey) {
+  function openPauseModal(empId: string, jour: JourKey) {
+    setPauseModal({ empId, jour, debut: '12:00', fin: '13:00', type: 'recurrente', dates: [] })
+  }
+
+  function confirmAddPause() {
+    if (!pauseModal) return
+    const { empId, jour, debut, fin, type, dates } = pauseModal
     setEmpData(prev => {
       const d = { ...prev[empId] }
-      const pauses = [...d.horaires[jour].pauses, { id: uid(), debut: '12:00', fin: '13:00' }]
+      const pauses = [...d.horaires[jour].pauses, {
+        id: uid(), debut, fin,
+        type,
+        dates: type === 'ponctuelle' ? dates : null,
+      }]
       d.horaires = { ...d.horaires, [jour]: { ...d.horaires[jour], pauses } }
       d.dirty = true
       return { ...prev, [empId]: d }
     })
+    setPauseModal(null)
   }
 
   function removePause(empId: string, jour: JourKey, pauseId: string) {
@@ -584,7 +634,7 @@ export default function AgendaCollabScreen() {
                     onChangeText={v => setHoraireField(emp.id, key, 'fin', v)}
                     placeholder="18:00"
                   />
-                  <TouchableOpacity onPress={() => addPause(emp.id, key)}>
+                  <TouchableOpacity onPress={() => openPauseModal(emp.id, key)}>
                     <Ionicons name="add-circle-outline" size={20} color={color} />
                   </TouchableOpacity>
                 </View>
@@ -601,6 +651,17 @@ export default function AgendaCollabScreen() {
             <Text style={{ fontSize: 12, color: '#7c3aed', fontWeight: '600', marginBottom: 4 }}>Pauses {label}</Text>
             {data.horaires[key].pauses.map(p => (
               <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <View style={{ alignItems: 'center', gap: 2 }}>
+                  {p.type === 'ponctuelle' ? (
+                    <View style={{ backgroundColor: '#fef3c7', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 }}>
+                      <Text style={{ fontSize: 9, color: '#b45309', fontWeight: '700' }}>{p.dates?.length ?? 0}×</Text>
+                    </View>
+                  ) : (
+                    <View style={{ backgroundColor: '#dbeafe', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 }}>
+                      <Text style={{ fontSize: 9, color: '#1d4ed8', fontWeight: '700' }}>hebdo</Text>
+                    </View>
+                  )}
+                </View>
                 <TextInput
                   style={[s.timeInput, { width: 70 }]}
                   value={p.debut}
@@ -1165,6 +1226,138 @@ export default function AgendaCollabScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      {/* ── Modal Pause ── */}
+      <Modal
+        visible={!!pauseModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPauseModal(null)}
+      >
+        {pauseModal && (() => {
+          const labelJour = JOURS.find(j => j.key === pauseModal.jour)?.label ?? ''
+          const tz = company?.timezone ?? 'America/Toronto'
+          const upcomingDates = getUpcomingDates(pauseModal.jour, tz)
+          const canAdd = pauseModal.type !== 'ponctuelle' || pauseModal.dates.length > 0
+          return (
+            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+              <View style={s.dialogOverlay}>
+                <View style={[s.dialogBox, { maxHeight: '85%' }]}>
+
+                  {/* Header */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                    <Text style={[s.dialogTitle, { flex: 1 }]}>Nouvelle pause — {labelJour}</Text>
+                    <TouchableOpacity onPress={() => setPauseModal(null)}>
+                      <Text style={{ fontSize: 20, color: '#9ca3af', fontWeight: '700' }}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <ScrollView showsVerticalScrollIndicator={false}>
+
+                    {/* Type */}
+                    <Text style={[s.fieldLabel, { marginBottom: 8 }]}>Type</Text>
+                    {(['recurrente', 'ponctuelle'] as const).map(t => (
+                      <TouchableOpacity
+                        key={t}
+                        onPress={() => setPauseModal(prev => prev ? { ...prev, type: t, dates: [] } : prev)}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}
+                      >
+                        <View style={{
+                          width: 18, height: 18, borderRadius: 9,
+                          borderWidth: 2, borderColor: pauseModal.type === t ? '#7c3aed' : '#d1d5db',
+                          alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          {pauseModal.type === t && (
+                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#7c3aed' }} />
+                          )}
+                        </View>
+                        <Text style={{ fontSize: 14, color: '#374151' }}>
+                          {t === 'recurrente'
+                            ? `Récurrente (tous les ${labelJour.toLowerCase()}s)`
+                            : 'Ponctuelle (dates spécifiques)'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+
+                    {/* Heures */}
+                    <Text style={[s.fieldLabel, { marginTop: 8 }]}>Heures</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                      <TextInput
+                        style={[s.timeInput, { flex: 1 }]}
+                        value={pauseModal.debut}
+                        onChangeText={v => setPauseModal(prev => prev ? { ...prev, debut: v } : prev)}
+                        placeholder="12:00"
+                        maxLength={5}
+                      />
+                      <Text style={{ color: '#9ca3af' }}>→</Text>
+                      <TextInput
+                        style={[s.timeInput, { flex: 1 }]}
+                        value={pauseModal.fin}
+                        onChangeText={v => setPauseModal(prev => prev ? { ...prev, fin: v } : prev)}
+                        placeholder="13:00"
+                        maxLength={5}
+                      />
+                    </View>
+
+                    {/* Date chips — ponctuelle seulement */}
+                    {pauseModal.type === 'ponctuelle' && (
+                      <View style={{ marginBottom: 16 }}>
+                        <Text style={[s.fieldLabel, { marginBottom: 8 }]}>
+                          Sélectionnez les {labelJour.toLowerCase()}s
+                        </Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                          {upcomingDates.map(date => {
+                            const selected = pauseModal.dates.includes(date)
+                            const label = new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+                            return (
+                              <TouchableOpacity
+                                key={date}
+                                onPress={() => setPauseModal(prev => prev ? {
+                                  ...prev,
+                                  dates: selected
+                                    ? prev.dates.filter(d => d !== date)
+                                    : [...prev.dates, date],
+                                } : prev)}
+                                style={{
+                                  paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8,
+                                  backgroundColor: selected ? '#7c3aed' : '#f3f4f6',
+                                }}
+                              >
+                                <Text style={{ fontSize: 12, fontWeight: '600', color: selected ? '#fff' : '#6b7280' }}>
+                                  {label}
+                                </Text>
+                              </TouchableOpacity>
+                            )
+                          })}
+                        </View>
+                      </View>
+                    )}
+
+                  </ScrollView>
+
+                  {/* Actions */}
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                    <TouchableOpacity
+                      style={[s.dialogBtn, { flex: 1, backgroundColor: '#f3f4f6' }]}
+                      onPress={() => setPauseModal(null)}
+                    >
+                      <Text style={{ color: '#374151', fontWeight: '600' }}>Annuler</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[s.dialogBtn, { flex: 1, backgroundColor: '#7c3aed', opacity: canAdd ? 1 : 0.4 }]}
+                      onPress={confirmAddPause}
+                      disabled={!canAdd}
+                    >
+                      <Text style={{ color: '#fff', fontWeight: '700' }}>Ajouter</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          )
+        })()}
+      </Modal>
+
       {/* ── Modal Multi-sélection ── */}
       <Modal visible={multiPopup} transparent animationType="slide" onRequestClose={() => setMultiPopup(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
