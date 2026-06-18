@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, ActivityIndicator,
+  StyleSheet, ActivityIndicator, Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -52,6 +52,17 @@ function fmtDateShort(iso: string) {
   return new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+function isInNoShowWindow(dateRdv: string, heureRdv: string, dureeMinutes: number | null): boolean {
+  const now = new Date()
+  const [h, m] = heureRdv.split(':').map(Number)
+  const rdvDate = new Date(dateRdv + 'T00:00:00')
+  rdvDate.setHours(h, m, 0, 0)
+  const duree = dureeMinutes ?? 60
+  const finService = new Date(rdvDate.getTime() + duree * 60 * 1000)
+  const fenetreNoShow = new Date(finService.getTime() + 24 * 60 * 60 * 1000)
+  return now >= rdvDate && now <= fenetreNoShow
+}
+
 // ── Main Component ────────────────────────────────────────────────
 export default function ReservationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -63,6 +74,7 @@ export default function ReservationDetailScreen() {
   const [pointsFidelite, setPointsFidelite] = useState<number | null>(null)
   const [historiqueResas, setHistoriqueResas] = useState<HistoResa[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -114,6 +126,14 @@ export default function ReservationDetailScreen() {
     }
     load()
   }, [id])
+
+  const markNoShow = async () => {
+    if (!resa) return
+    setSaving(true)
+    await supabase.from('reservations').update({ statut: 'no_show' }).eq('id', resa.id)
+    setResa(prev => prev ? { ...prev, statut: 'no_show' } : null)
+    setSaving(false)
+  }
 
   if (loading) {
     return (
@@ -244,6 +264,28 @@ export default function ReservationDetailScreen() {
                 Aucun historique
               </Text>
             )}
+          </View>
+        )}
+
+        {/* ── Section ACTIONS ── */}
+        {(resa.statut === 'pending' || resa.statut === 'confirmed') && isInNoShowWindow(resa.date_rdv, resa.heure_rdv, resa.duree_rdv) && (
+          <View style={s.card}>
+            <Text style={s.sectionLabel}>ACTIONS</Text>
+            <TouchableOpacity
+              onPress={() => Alert.alert(
+                'Marquer comme absent',
+                `${[resa.client_prenom, resa.client_nom].filter(Boolean).join(' ') || 'Ce client'} ne s'est pas présenté(e) ?`,
+                [
+                  { text: 'Retour', style: 'cancel' },
+                  { text: 'Confirmer absent', style: 'destructive', onPress: markNoShow },
+                ]
+              )}
+              disabled={saving}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(249,115,22,0.08)', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: 'rgba(249,115,22,0.2)', opacity: saving ? 0.6 : 1 }}
+            >
+              <Ionicons name="person-remove-outline" size={16} color="#ea580c" />
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#ea580c' }}>Marquer comme absent</Text>
+            </TouchableOpacity>
           </View>
         )}
 

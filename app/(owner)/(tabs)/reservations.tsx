@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Modal, TextInput, ActivityIndicator, Share,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -72,7 +72,7 @@ function isInNoShowWindow(dateRdv: string, heureRdv: string, dureeMinutes: numbe
   rdvDate.setHours(h, m, 0, 0)
   const duree = dureeMinutes ?? 60
   const finService = new Date(rdvDate.getTime() + duree * 60 * 1000)
-  const fenetreNoShow = new Date(finService.getTime() + 60 * 60 * 1000)
+  const fenetreNoShow = new Date(finService.getTime() + 24 * 60 * 60 * 1000)
   return now >= rdvDate && now <= fenetreNoShow
 }
 
@@ -189,9 +189,10 @@ interface DetailModalProps {
   onClose: () => void
   onStatusChange: (id: string, statut: Statut) => Promise<void>
   onUpdate: (id: string, patch: Partial<ReservationRow>) => void
+  onDelete: (id: string) => Promise<void>
 }
 
-function DetailModal({ row, companyId, allEmployes, onClose, onStatusChange, onUpdate }: DetailModalProps) {
+function DetailModal({ row, companyId, allEmployes, onClose, onStatusChange, onUpdate, onDelete }: DetailModalProps) {
   const [client, setClient] = useState<ClientRow | null>(null)
   const [history, setHistory] = useState<{ id: string; date_rdv: string; service: string | null; statut: string }[]>([])
   const [note, setNote] = useState('')
@@ -585,6 +586,24 @@ function DetailModal({ row, companyId, allEmployes, onClose, onStatusChange, onU
                   </View>
                 ) : null}
 
+                {/* Supprimer */}
+                <View style={{ borderTopWidth: 1, borderTopColor: '#f3f4f6', paddingTop: 16 }}>
+                  <TouchableOpacity
+                    onPress={() => Alert.alert(
+                      'Supprimer la réservation',
+                      'Supprimer définitivement cette réservation ? Cette action est irréversible.',
+                      [
+                        { text: 'Annuler', style: 'cancel' },
+                        { text: 'Supprimer', style: 'destructive', onPress: () => onDelete(row.id) },
+                      ]
+                    )}
+                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: 'rgba(239,68,68,0.2)' }}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#dc2626" />
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#dc2626' }}>Supprimer la réservation</Text>
+                  </TouchableOpacity>
+                </View>
+
               </View>
             )}
           </ScrollView>
@@ -954,6 +973,7 @@ export default function ReservationsScreen() {
   const [cancelTarget, setCancelTarget]   = useState<ReservationRow | null>(null)
   const [cancelReason, setCancelReason]   = useState('')
   const [noShowTarget, setNoShowTarget]   = useState<ReservationRow | null>(null)
+  const [toast, setToast]                 = useState<string | null>(null)
 
   // ── Load company ───────────────────────────────────────────────
   useEffect(() => {
@@ -1006,6 +1026,18 @@ export default function ReservationsScreen() {
     setDetailRow(prev => prev?.id === id ? { ...prev, statut } : prev)
     setNoShowTarget(null)
     setSaving(false)
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!company) return
+    setSaving(true)
+    const { error } = await supabase.from('reservations').delete().eq('id', id)
+    if (error) { Alert.alert('Erreur', error.message); setSaving(false); return }
+    setRows(prev => prev.filter(r => r.id !== id))
+    setDetailRow(null)
+    setSaving(false)
+    setToast('Réservation supprimée')
+    setTimeout(() => setToast(null), 3000)
   }
 
   // ── Filter ─────────────────────────────────────────────────────
@@ -1158,6 +1190,7 @@ export default function ReservationsScreen() {
                   backgroundColor: showSvcColor && svcColor ? `${svcColor}18` : 'rgba(255,255,255,0.9)',
                   borderLeftWidth: showSvcColor && svcColor ? 3 : 0,
                   borderLeftColor: svcColor ?? 'transparent',
+                  overflow: 'hidden',
                 }]}
               >
                 {/* Row 1: client + status */}
@@ -1202,9 +1235,11 @@ export default function ReservationsScreen() {
                     ) : null}
                     {isActive ? (
                       <>
-                        <TouchableOpacity onPress={() => setNoShowTarget(r)} style={[s.inlineBtn, { backgroundColor: 'rgba(249,115,22,0.1)' }]}>
-                          <Ionicons name="person-remove-outline" size={14} color="#ea580c" />
-                        </TouchableOpacity>
+                        {isInNoShowWindow(r.date_rdv, r.heure_rdv, r.duree_rdv) ? (
+                          <TouchableOpacity onPress={() => setNoShowTarget(r)} style={[s.inlineBtn, { backgroundColor: 'rgba(249,115,22,0.1)' }]}>
+                            <Ionicons name="person-remove-outline" size={14} color="#ea580c" />
+                          </TouchableOpacity>
+                        ) : null}
                         <TouchableOpacity onPress={() => { setCancelTarget(r); setCancelReason('') }} style={[s.inlineBtn, { backgroundColor: 'rgba(239,68,68,0.1)' }]}>
                           <Ionicons name="close" size={14} color="#dc2626" />
                         </TouchableOpacity>
@@ -1215,6 +1250,27 @@ export default function ReservationsScreen() {
                     </TouchableOpacity>
                   </View>
                 </View>
+                {r.statut === 'no_show' && (
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: 'absolute',
+                      top: 0, left: 0, right: 0, bottom: 0,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{
+                      fontSize: 28,
+                      fontWeight: 'bold',
+                      color: 'rgba(239, 68, 68, 0.35)',
+                      transform: [{ rotate: '-25deg' }],
+                      letterSpacing: 4,
+                    }}>
+                      ABSENT
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
             )
           })
@@ -1238,6 +1294,7 @@ export default function ReservationsScreen() {
             setRows(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r))
             setDetailRow(prev => prev ? { ...prev, ...patch } : null)
           }}
+          onDelete={handleDelete}
         />
       ) : null}
 
@@ -1311,6 +1368,12 @@ export default function ReservationsScreen() {
           </View>
         </View>
       </Modal>
+
+      {toast ? (
+        <View style={{ position: 'absolute', bottom: 90, left: 20, right: 20, backgroundColor: '#1f2937', borderRadius: 12, padding: 14, alignItems: 'center', elevation: 10, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10 }}>
+          <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>{toast}</Text>
+        </View>
+      ) : null}
 
     </SafeAreaView>
   )

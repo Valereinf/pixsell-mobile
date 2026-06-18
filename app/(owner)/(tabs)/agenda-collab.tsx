@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput, Modal,
   StyleSheet, ActivityIndicator, Switch, FlatList, Platform,
-  KeyboardAvoidingView,
+  KeyboardAvoidingView, Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -41,7 +41,7 @@ interface StatutRow { id: string; employe_id: string; date_statut: string; statu
 interface DemandeRow {
   id: string; employe_id: string; type_demande: TypeDemande
   date_debut: string; heure_debut: string | null; date_fin: string; heure_fin: string | null
-  motif: string | null; statut: 'en_attente' | 'approuve' | 'refuse'
+  motif: string | null; statut: 'en_attente' | 'approuve' | 'refuse' | 'annule'
   commentaire_manager: string | null; type_document?: string | null
   date_souhaitee?: string | null; note_manager?: string | null; created_at: string
 }
@@ -544,6 +544,35 @@ export default function AgendaCollabScreen() {
     setActionSaving(false)
   }
 
+  async function annulerDemande(d: DemandeRow) {
+    Alert.alert(
+      'Annuler la demande',
+      'Annuler cette demande approuvée ? Les créneaux seront restaurés.',
+      [
+        { text: 'Non', style: 'cancel' },
+        {
+          text: 'Annuler la demande',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase.from('employe_demandes_rh')
+              .update({ statut: 'annule' })
+              .eq('id', d.id)
+            if (error) { console.error('[annulerDemande]', error); Alert.alert('Erreur', error.message); return }
+            if (d.type_demande !== 'document_administratif') {
+              await supabase.from('employe_statuts_jour')
+                .delete()
+                .eq('company_id', company!.id)
+                .eq('employe_id', d.employe_id)
+                .gte('date_statut', d.date_debut)
+                .lte('date_statut', d.date_fin)
+            }
+            setDemandes(prev => prev.map(r => r.id === d.id ? { ...r, statut: 'annule' } : r))
+          },
+        },
+      ]
+    )
+  }
+
   async function handleSendMsg() {
     if (!company || !msgEmpId || !msgText.trim()) return
     setMsgSaving(true)
@@ -988,8 +1017,8 @@ export default function AgendaCollabScreen() {
                   : demandes.map(d => {
                     const emp = employes.find(e => e.id === d.employe_id)
                     const isAttente = d.statut === 'en_attente'
-                    const statutColor = d.statut === 'approuve' ? '#059669' : d.statut === 'refuse' ? '#dc2626' : '#b45309'
-                    const statutBg = d.statut === 'approuve' ? '#d1fae5' : d.statut === 'refuse' ? '#fee2e2' : '#fef3c7'
+                    const statutColor = d.statut === 'approuve' ? '#059669' : d.statut === 'refuse' ? '#dc2626' : d.statut === 'annule' ? '#6b7280' : '#b45309'
+                    const statutBg = d.statut === 'approuve' ? '#d1fae5' : d.statut === 'refuse' ? '#fee2e2' : d.statut === 'annule' ? '#f3f4f6' : '#fef3c7'
                     const soldeEmp = soldes.find(s => s.employe_id === d.employe_id)
                     return (
                       <View key={d.id} style={s.demandeCard}>
@@ -1005,7 +1034,7 @@ export default function AgendaCollabScreen() {
                           </View>
                           <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: statutBg }}>
                             <Text style={{ fontSize: 11, fontWeight: '700', color: statutColor }}>
-                              {d.statut === 'approuve' ? 'Approuvé' : d.statut === 'refuse' ? 'Refusé' : 'En attente'}
+                              {d.statut === 'approuve' ? 'Approuvé' : d.statut === 'refuse' ? 'Refusé' : d.statut === 'annule' ? 'Annulé' : 'En attente'}
                             </Text>
                           </View>
                         </View>
@@ -1035,6 +1064,14 @@ export default function AgendaCollabScreen() {
                               <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>Refuser</Text>
                             </TouchableOpacity>
                           </View>
+                        )}
+                        {d.statut === 'approuve' && (
+                          <TouchableOpacity
+                            style={[s.smallBtn, { backgroundColor: '#6b7280', marginTop: 8 }]}
+                            onPress={() => annulerDemande(d)}
+                          >
+                            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>✕ Annuler</Text>
+                          </TouchableOpacity>
                         )}
                       </View>
                     )
