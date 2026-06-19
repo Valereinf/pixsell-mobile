@@ -434,10 +434,6 @@ export default function CalendrierScreen() {
   const dayVisibleCols = Math.min(visibleEmps.length || 1, 3)
   const DAY_COL_W = (SCREEN_W - TIME_COL_WIDTH - 16) / dayVisibleCols
 
-  console.log('[CAL] selectedDate:', selectedDate)
-  console.log('[CAL] typeof selectedDate:', typeof selectedDate)
-  console.log('[CAL] isValid:', !isNaN((selectedDate as any)?.getTime?.()))
-
   if (loading) return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f5f3ff' }}>
       <ActivityIndicator size="large" color="#7c3aed" />
