@@ -1,4 +1,5 @@
-// iOS JSC/Hermes rejects 'YYYY-MM-DD' bare strings — replace hyphens with slashes for reliable local-time parsing
+// Explicit constructor — works on iOS JSC/Hermes/V8, unlike new Date('YYYY-MM-DD') or new Date('YYYY/MM/DD HH:mm:ss')
 export function parseDate(dateStr: string): Date {
-  return new Date(dateStr.replace(/-/g, '/') + ' 12:00:00')
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d, 12, 0, 0)
 }
