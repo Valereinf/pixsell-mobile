@@ -42,7 +42,10 @@
               "pathPrefix": "/"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -53,7 +56,10 @@
     },
     "ios": {
       "bundleIdentifier": "com.pixsell.mobile",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "plugins": [
       "expo-router",
@@ -69,7 +75,9 @@
         "expo-build-properties",
         {
           "android": {
-            "extraMavenRepos": ["https://repo1.maven.org/maven2"]
+            "extraMavenRepos": [
+              "https://repo1.maven.org/maven2"
+            ]
           }
         }
       ]
