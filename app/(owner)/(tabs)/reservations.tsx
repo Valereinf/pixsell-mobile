@@ -7,6 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../../lib/supabase'
+import { parseDate } from '../../../lib/parseDate'
 
 const NETLIFY_URL = 'https://app.pixsellmedia.ca'
 
@@ -68,7 +69,7 @@ type Company = { id: string; horaires?: Record<string, HoraireDay> | null; coule
 function isInNoShowWindow(dateRdv: string, heureRdv: string, dureeMinutes: number | null): boolean {
   const now = new Date()
   const [h, m] = heureRdv.split(':').map(Number)
-  const rdvDate = new Date(dateRdv + 'T00:00:00')
+  const rdvDate = parseDate(dateRdv)
   rdvDate.setHours(h, m, 0, 0)
   const duree = dureeMinutes ?? 60
   const finService = new Date(rdvDate.getTime() + duree * 60 * 1000)

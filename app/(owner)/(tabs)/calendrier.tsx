@@ -7,6 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../../lib/supabase'
+import { parseDate } from '../../../lib/parseDate'
 
 const { width: SCREEN_W } = Dimensions.get('window')
 
@@ -102,10 +103,10 @@ const toMins = (t: string) => { const [h, m] = (t || '0:0').split(':').map(Numbe
 const toTime = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 const todayISO = () => new Date().toLocaleDateString('en-CA')
 const addDays = (d: string, n: number) => {
-  const dt = new Date(d + 'T12:00:00'); dt.setDate(dt.getDate() + n); return dt.toLocaleDateString('en-CA')
+  const dt = parseDate(d); dt.setDate(dt.getDate() + n); return dt.toLocaleDateString('en-CA')
 }
 const fmtDate = (iso: string) =>
-  new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+  parseDate(iso).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
 const empColor = (emp: Employe | undefined, idx: number) =>
   emp?.couleur_agenda || EMP_COLORS[idx % EMP_COLORS.length]
 
@@ -175,7 +176,7 @@ export default function CalendrierScreen() {
   // ── Load resas + absences ────────────────────────────────────
   const loadResas = useCallback(async () => {
     if (!company) return
-    const dow = (new Date(selectedDate + 'T12:00:00').getDay() + 6) % 7
+    const dow = (parseDate(selectedDate).getDay() + 6) % 7
     const weekMon = addDays(selectedDate, -dow)
     const dateFrom = viewMode === 'week' ? weekMon : selectedDate
     const dateTo   = viewMode === 'week' ? addDays(weekMon, 6) : selectedDate
@@ -422,7 +423,7 @@ export default function CalendrierScreen() {
 
   // ── Week dates ───────────────────────────────────────────────
   const weekDates = (() => {
-    const dow = (new Date(selectedDate + 'T12:00:00').getDay() + 6) % 7
+    const dow = (parseDate(selectedDate).getDay() + 6) % 7
     const mon = addDays(selectedDate, -dow)
     return Array.from({ length: 7 }, (_, i) => addDays(mon, i))
   })()
@@ -560,7 +561,7 @@ export default function CalendrierScreen() {
             <View style={{ width: TIME_COL_WIDTH }} />
             {weekDates.map(date => {
               const isToday = date === todayISO()
-              const label = new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })
+              const label = parseDate(date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })
               return (
                 <TouchableOpacity key={date} onPress={() => { setSelectedDate(date); setViewMode('day') }}
                   style={{ width: weekColW, padding: 8, alignItems: 'center', borderRightWidth: 1, borderRightColor: 'rgba(0,0,0,0.05)', backgroundColor: isToday ? 'rgba(124,58,237,0.05)' : 'transparent' }}>

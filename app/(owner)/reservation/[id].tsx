@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../../lib/supabase'
+import { parseDate } from '../../../lib/parseDate'
 
 // ── Types ─────────────────────────────────────────────────────────
 interface ResaDetail {
@@ -44,18 +45,18 @@ const STATUS_COLOR: Record<string, { bg: string; color: string; label: string }>
 
 // ── Helpers ───────────────────────────────────────────────────────
 function fmtDate(iso: string, heure: string) {
-  const d = new Date(iso + 'T12:00:00')
+  const d = parseDate(iso)
   const dateLong = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   return `${dateLong} à ${heure?.slice(0, 5)}`
 }
 function fmtDateShort(iso: string) {
-  return new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+  return parseDate(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function isInNoShowWindow(dateRdv: string, heureRdv: string, dureeMinutes: number | null): boolean {
   const now = new Date()
   const [h, m] = heureRdv.split(':').map(Number)
-  const rdvDate = new Date(dateRdv + 'T00:00:00')
+  const rdvDate = parseDate(dateRdv)
   rdvDate.setHours(h, m, 0, 0)
   const duree = dureeMinutes ?? 60
   const finService = new Date(rdvDate.getTime() + duree * 60 * 1000)
