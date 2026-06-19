@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image } from 'react-native'
 import { useRouter, usePathname } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -47,17 +47,37 @@ export default function TabletSidebar() {
 
   return (
     <View style={[s.sidebar, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 }]}>
-      {/* Logo + salon name */}
-      <View style={s.brand}>
-        <View style={s.logoBox}>
-          <Text style={s.logoText}>P</Text>
+      {/* ── Entête sidebar ── */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 }}>
+
+        {/* Logo Pixsell */}
+        <Image
+          source={require('../assets/pixsell_new_logo.png')}
+          style={{ width: 130, height: 36, resizeMode: 'contain', marginBottom: 12 }}
+        />
+
+        {/* Logo + Nom du salon */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8,
+          backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 10, padding: 8 }}>
+          {company?.logo_url ? (
+            <Image
+              source={{ uri: company.logo_url }}
+              style={{ width: 32, height: 32, borderRadius: 8 }}
+            />
+          ) : (
+            <View style={{ width: 32, height: 32, borderRadius: 8,
+              backgroundColor: '#7c3aed', justifyContent: 'center', alignItems: 'center' }}>
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>
+                {company?.name?.[0] ?? 'S'}
+              </Text>
+            </View>
+          )}
+          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13, flex: 1 }}
+            numberOfLines={1}>
+            {company?.name ?? 'Mon salon'}
+          </Text>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.appName}>Pixsell</Text>
-          {company?.name ? (
-            <Text style={s.salonName} numberOfLines={1}>{company.name}</Text>
-          ) : null}
-        </View>
+
       </View>
 
       <View style={s.divider} />
@@ -99,11 +119,6 @@ export default function TabletSidebar() {
 
 const s = StyleSheet.create({
   sidebar:       { width: 240, backgroundColor: '#f5f3ff', borderRightWidth: 1, borderRightColor: 'rgba(124,58,237,0.1)', paddingHorizontal: 12 },
-  brand:         { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 4 },
-  logoBox:       { width: 36, height: 36, borderRadius: 10, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center' },
-  logoText:      { color: '#fff', fontSize: 18, fontWeight: '800' },
-  appName:       { fontSize: 15, fontWeight: '800', color: '#1e1b4b' },
-  salonName:     { fontSize: 11, color: '#7c3aed', fontWeight: '500', marginTop: 1 },
   divider:       { height: 1, backgroundColor: 'rgba(124,58,237,0.1)', marginVertical: 8 },
   navItem:       { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, marginBottom: 2 },
   navItemActive: { backgroundColor: '#7c3aed' },
