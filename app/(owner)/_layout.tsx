@@ -28,7 +28,7 @@ function BlockedScreen({ company }: { company: Company }) {
 function OwnerLayoutInner() {
   const { company } = useContext(OwnerContext)
 
-  if (company?.subscription_status === 'blocked') {
+  if (company?.subscription_status === 'blocked' && company?.billing_enabled !== false) {
     return <BlockedScreen company={company} />
   }
 

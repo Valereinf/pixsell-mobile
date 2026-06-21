@@ -35,11 +35,25 @@ const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function getPeriodStart(p: Period): string | null {
-  const now = new Date()
-  if (p === 'mois')  return new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-CA')
-  if (p === '3mois') { const d = new Date(now); d.setMonth(d.getMonth() - 3); return d.toLocaleDateString('en-CA') }
-  if (p === 'annee') return new Date(now.getFullYear(), 0, 1).toLocaleDateString('en-CA')
+function getPeriodStart(p: Period, tz: string): string | null {
+  const localStr = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date())
+  const [year, month] = localStr.split('-').map(Number)
+
+  if (p === 'mois')
+    return `${year}-${String(month).padStart(2, '0')}-01`
+
+  if (p === '3mois') {
+    const d = new Date(year, month - 1, 1)
+    d.setMonth(d.getMonth() - 3)
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`
+  }
+
+  if (p === 'annee')
+    return `${year}-01-01`
+
   return null
 }
 
@@ -107,11 +121,16 @@ export default function StatistiquesScreen() {
 
   // ── Filtered data ──────────────────────────────────────────────────────
 
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: company?.timezone ?? 'America/Toronto',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date())
+
   const filtered = useMemo(() => {
-    const start = getPeriodStart(period)
-    if (!start) return rdvs
-    return rdvs.filter(r => r.date_rdv >= start)
-  }, [rdvs, period])
+    const start = getPeriodStart(period, company?.timezone ?? 'America/Toronto')
+    const base = start ? rdvs.filter(r => r.date_rdv >= start) : rdvs
+    return base.filter(r => r.date_rdv <= today)
+  }, [rdvs, period, today])
 
   const completed  = useMemo(() => filtered.filter(r => COMPLETED.includes(r.statut)), [filtered])
   const cancelled  = useMemo(() => filtered.filter(r => CANCELLED.includes(r.statut)), [filtered])

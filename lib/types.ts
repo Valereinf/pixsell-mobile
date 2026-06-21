@@ -96,6 +96,7 @@ export interface Company {
   // Quota & abonnement
   subscription_status?: 'trial' | 'active' | 'blocked' | null
   quota_gratuit?: number | null
+  billing_enabled?: boolean | null
   couleur_service_enabled?: boolean | null
 }
 

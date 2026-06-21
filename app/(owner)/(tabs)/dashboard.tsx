@@ -53,6 +53,24 @@ function inits(prenom: string | null, nom: string | null) {
   return `${(prenom?.[0] ?? '').toUpperCase()}${(nom?.[0] ?? '').toUpperCase()}`
 }
 
+function getWeekBounds(timezone: string): { start: string; end: string } {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  })
+  const localStr = formatter.format(new Date())
+  const [year, month, day] = localStr.split('-').map(Number)
+  const localDate = new Date(year, month - 1, day)
+  const dow = (localDate.getDay() + 6) % 7
+  const monday = new Date(localDate)
+  monday.setDate(localDate.getDate() - dow)
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  const toISO = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  return { start: toISO(monday), end: toISO(sunday) }
+}
+
 async function fetchRecent(companyId: string): Promise<Resa[]> {
   const { data } = await supabase
     .from('reservations')
@@ -119,19 +137,12 @@ export default function DashboardScreen() {
 
   // ── loadStats — réutilisable (realtime + foreground) ────────
   const loadStats = async (companyId: string) => {
-    const now = new Date()
-    const dayOfWeek = (now.getDay() + 6) % 7
-    const weekStart = new Date(now)
-    weekStart.setDate(now.getDate() - dayOfWeek)
-    weekStart.setHours(0, 0, 0, 0)
-    const isoWeek = weekStart.toISOString().slice(0, 10)
-
-    const weekStartISO = isoWeek
+    const tz = company?.timezone ?? 'America/Toronto'
+    const { start: weekStartISO, end: weekEnd } = getWeekBounds(tz)
     const prevWeekStartISO = addDays(weekStartISO, -7)
-    const todayLocal = new Date().toLocaleDateString('en-CA')
-    const isoWeekEnd = new Date(weekStart)
-    isoWeekEnd.setDate(weekStart.getDate() + 7)
-    const isoWeekEndStr = isoWeekEnd.toISOString().slice(0, 10)
+    const todayLocal = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date())
 
     const [
       { count: weekResCount },
@@ -141,17 +152,18 @@ export default function DashboardScreen() {
       supabase.from('reservations')
         .select('*', { count: 'exact', head: true })
         .eq('company_id', companyId)
-        .gte('date_rdv', isoWeek)
-        .lt('date_rdv', isoWeekEndStr),
+        .gte('date_rdv', weekStartISO)
+        .lte('date_rdv', weekEnd),
       supabase.from('reservations')
         .select('statut, prix')
         .eq('company_id', companyId)
-        .gte('date_rdv', isoWeek),
+        .gte('date_rdv', weekStartISO)
+        .lte('date_rdv', weekEnd),
       supabase.from('reservations')
         .select('date_rdv, prix, statut')
         .eq('company_id', companyId)
         .gte('date_rdv', prevWeekStartISO)
-        .lte('date_rdv', addDays(weekStartISO, 6)),
+        .lte('date_rdv', weekEnd),
     ])
 
     setResCount(weekResCount ?? 0)
