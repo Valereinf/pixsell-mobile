@@ -90,6 +90,10 @@ export default function DashboardScreen() {
   const [resCount, setResCount] = useState(0)
   const [revenue, setRevenue] = useState(0)
   const [cancelRate, setCancelRate] = useState(0)
+  const [completedCount, setCompletedCount]         = useState(0)
+  const [completedYesterday, setCompletedYesterday] = useState(0)
+  const [cancelledCount, setCancelledCount]         = useState(0)
+  const [noShowCount, setNoShowCount]               = useState(0)
   const [recent, setRecent] = useState<Resa[]>([])
   const [rdvAujourdhui, setRdvAujourdhui] = useState(0)
   const [weekData, setWeekData] = useState<number[]>(Array(7).fill(0))
@@ -143,11 +147,22 @@ export default function DashboardScreen() {
     const todayLocal = new Intl.DateTimeFormat('en-CA', {
       timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
     }).format(new Date())
+    const yesterdayISO = (() => {
+      const fmt = new Intl.DateTimeFormat('en-CA', {
+        timeZone: company?.timezone ?? 'America/Toronto',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+      })
+      const local = fmt.format(new Date())
+      const [y, m, day] = local.split('-').map(Number)
+      const date = new Date(y, m - 1, day - 1)
+      return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`
+    })()
 
     const [
       { count: weekResCount },
       { data: weekResas },
       { data: twoWeekResas },
+      { data: yesterdayResas },
     ] = await Promise.all([
       supabase.from('reservations')
         .select('*', { count: 'exact', head: true })
@@ -164,6 +179,11 @@ export default function DashboardScreen() {
         .eq('company_id', companyId)
         .gte('date_rdv', prevWeekStartISO)
         .lte('date_rdv', weekEnd),
+      supabase.from('reservations')
+        .select('statut')
+        .eq('company_id', companyId)
+        .eq('date_rdv', yesterdayISO)
+        .in('statut', ['completed','confirme','confirmee','terminee']),
     ])
 
     setResCount(weekResCount ?? 0)
@@ -174,6 +194,28 @@ export default function DashboardScreen() {
     setRevenue(rev)
     const bad = allWeek.filter(r => r.statut === 'cancelled' || r.statut === 'no_show').length
     setCancelRate(allWeek.length > 0 ? Math.round((bad / allWeek.length) * 100) : 0)
+
+    const completedWeek = allWeek.filter(r =>
+      r.statut === 'completed' ||
+      r.statut === 'confirme' ||
+      r.statut === 'confirmee' ||
+      r.statut === 'terminee'
+    ).length
+    setCompletedCount(completedWeek)
+
+    const cancelled = allWeek.filter(r =>
+      r.statut === 'cancelled' ||
+      r.statut === 'annule' ||
+      r.statut === 'annulee'
+    ).length
+    const noShows = allWeek.filter(r =>
+      r.statut === 'no_show' ||
+      r.statut === 'absent'
+    ).length
+    setCancelledCount(cancelled)
+    setNoShowCount(noShows)
+
+    setCompletedYesterday(yesterdayResas?.length ?? 0)
 
     // ── Taux de remplissage du jour ──────────────────────────
     const DAY_KEYS = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'] as const
@@ -432,7 +474,35 @@ const maxVal = Math.max(...weekData, ...prevWeekData, 1)
 
         {/* ── 3. KPI Cards ── */}
         <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-          <KpiCard label="Réservations" value={String(resCount)} sub="cette semaine" color="#F9A310" />
+          <View style={{
+            flex: 1,
+            backgroundColor: '#F9A310',
+            borderRadius: 20,
+            padding: 14,
+            shadowColor: '#F9A310',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.3,
+            shadowRadius: 16,
+            elevation: 8,
+          }}>
+            <Text style={{
+              fontSize: 10, fontWeight: '600',
+              textTransform: 'uppercase', letterSpacing: 0.5,
+              color: 'rgba(255,255,255,0.8)', marginBottom: 8,
+            }}>Réservations</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: 22, fontWeight: '800', color: 'white' }}>{resCount}</Text>
+                <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.75)', marginTop: 2 }}>reçues</Text>
+              </View>
+              <View style={{ width: 1.5, height: 36, backgroundColor: 'rgba(255,255,255,0.4)', borderRadius: 1 }} />
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: 22, fontWeight: '800', color: 'white' }}>{completedCount}</Text>
+                <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.75)', marginTop: 2 }}>complétées</Text>
+              </View>
+            </View>
+            <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)', marginTop: 4 }}>cette semaine</Text>
+          </View>
           <KpiCard label="Revenus" value={`${revenue.toFixed(0)} $`} sub="cette semaine" />
         </View>
 
@@ -459,29 +529,59 @@ const maxVal = Math.max(...weekData, ...prevWeekData, 1)
         </View>
 
         {/* ── 5. Taux de croissance ── */}
-        <View style={[s.card, { marginTop: 8, marginBottom: 12 }]}>
-          <Text style={{ fontSize: 11, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            TAUX DE CROISSANCE DES RÉSERVATIONS
-          </Text>
-          <Text style={{ fontSize: 28, fontWeight: '800', color: growthRate !== null && growthRate >= 0 ? '#16a34a' : '#dc2626', marginTop: 4 }}>
-            {growthRate !== null ? (growthRate > 0 ? '+' : '') + growthRate + '%' : '—'}
-          </Text>
-          <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>
-            cette semaine
-          </Text>
+        <View style={[s.card, {
+          marginTop: 8, marginBottom: 10,
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }]}>
+          <View>
+            <Text style={{ fontSize: 10, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Taux de croissance
+            </Text>
+            <Text style={{ fontSize: 24, fontWeight: '800', marginTop: 4, color: growthRate !== null && growthRate >= 0 ? '#16a34a' : '#dc2626' }}>
+              {growthRate !== null ? (growthRate > 0 ? '+' : '') + growthRate + '%' : '—'}
+            </Text>
+            <Text style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>cette semaine</Text>
+          </View>
+          <View style={{ width: 1, alignSelf: 'stretch', backgroundColor: 'rgba(0,0,0,0.08)' }} />
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={{ fontSize: 10, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Complétées hier
+            </Text>
+            <Text style={{ fontSize: 24, fontWeight: '800', color: '#7c3aed', marginTop: 4 }}>
+              {completedYesterday}
+            </Text>
+            <Text style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>hier</Text>
+          </View>
         </View>
 
         {/* ── 6. Taux annulation ── */}
-        <View style={[s.card, { marginBottom: 12 }]}>
-          <Text style={{ fontSize: 11, color: '#9ca3af', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Taux d'annulation
-          </Text>
-          <Text style={{ fontSize: 28, fontWeight: '800', color: cancelRate > 20 ? '#ef4444' : '#7c3aed', marginTop: 2 }}>
-            {cancelRate}%
-          </Text>
-          <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>
-            cette semaine
-          </Text>
+        <View style={[s.card, {
+          marginBottom: 10,
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }]}>
+          <View>
+            <Text style={{ fontSize: 10, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Annulations
+            </Text>
+            <Text style={{ fontSize: 24, fontWeight: '800', color: '#dc2626', marginTop: 4 }}>
+              {cancelledCount}
+            </Text>
+            <Text style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>cette semaine</Text>
+          </View>
+          <View style={{ width: 1, alignSelf: 'stretch', backgroundColor: 'rgba(0,0,0,0.08)' }} />
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={{ fontSize: 10, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Absents
+            </Text>
+            <Text style={{ fontSize: 24, fontWeight: '800', color: '#7c3aed', marginTop: 4 }}>
+              {noShowCount}
+            </Text>
+            <Text style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>cette semaine</Text>
+          </View>
         </View>
 
         {/* ── 7. Taux de Remplissage du jour ── */}
