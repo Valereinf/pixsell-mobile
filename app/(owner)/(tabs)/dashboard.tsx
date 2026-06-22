@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, Image,
   StyleSheet, Dimensions, AppState, type AppStateStatus,
+  useWindowDimensions,
 } from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -104,6 +106,8 @@ export default function DashboardScreen() {
   const [minutesDispo, setMinutesDispo] = useState(0)
   const [allEmployes, setAllEmployes] = useState<{ id: string; nom: string; prenom: string | null }[]>([])
   const [allServices, setAllServices] = useState<{ id: string; nom: string; couleur: string | null }[]>([])
+  const { width: screenWidth } = useWindowDimensions()
+  const isTablet = screenWidth >= 768
 
   // ── Load company ─────────────────────────────────────────────
   useEffect(() => {
@@ -380,6 +384,229 @@ const maxVal = Math.max(...weekData, ...prevWeekData, 1)
     )
   }
 
+  // ── TABLET LAYOUT — 3 colonnes ─────────────────────────────
+  if (isTablet) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f3ff' }} edges={['top']}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 32 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* ── TABLET: Header ── */}
+          <View style={[s.card, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', margin: 16, marginBottom: 0 }]}>
+            <View>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: '#111827' }}>
+                <Text style={{ color: '#F9A310' }}>Bonjour, </Text>{ownerName || company.name} 👋
+              </Text>
+              <Text style={{ color: '#9ca3af', fontSize: 13, marginTop: 2 }}>
+                Bienvenue sur votre tableau de bord
+              </Text>
+            </View>
+            {company?.logo_url ? (
+              <Image source={{ uri: company.logo_url }} style={{ width: 42, height: 42, borderRadius: 21 }} />
+            ) : (
+              <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: 'white', fontSize: 13, fontWeight: '700' }}>{ownerInitials}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* ── TABLET: Body 3 colonnes ── */}
+          <View style={{ flexDirection: 'row', gap: 16, padding: 16 }}>
+
+            {/* COLONNE GAUCHE flex:3 */}
+            <View style={{ flex: 3 }}>
+              {/* Carte salon */}
+              <View style={[s.card, { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }]}>
+                {company?.logo_url ? (
+                  <Image source={{ uri: company.logo_url }} style={{ width: 48, height: 48, borderRadius: 24 }} />
+                ) : (
+                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ color: 'white', fontWeight: '700', fontSize: 18 }}>{company?.name?.charAt(0) ?? 'P'}</Text>
+                  </View>
+                )}
+                <View>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#1f2937' }}>{company?.name ?? 'Salon'}</Text>
+                  <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>Tableau de bord</Text>
+                </View>
+              </View>
+
+              {/* Activités récentes */}
+              <View style={s.card}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827', marginBottom: 12 }}>Activités récentes</Text>
+                {recent.length === 0 ? (
+                  <Text style={{ fontSize: 13, color: '#9ca3af', textAlign: 'center', paddingVertical: 12 }}>Aucune activité</Text>
+                ) : (
+                  <ScrollView nestedScrollEnabled={true} showsVerticalScrollIndicator={false}>
+                    {recent.map((r, i) => {
+                      const sc           = STATUS_COLOR[r.statut] ?? STATUS_COLOR.pending
+                      const showSvcColor = company?.couleur_service_enabled !== false
+                      const svcColor     = allServices.find(sv => sv.nom === r.service)?.couleur ?? null
+                      return (
+                        <TouchableOpacity
+                          key={r.id}
+                          onPress={() => router.push(`/(owner)/reservation/${r.id}` as Parameters<typeof router.push>[0])}
+                          activeOpacity={0.7}
+                          style={{
+                            flexDirection: 'row', alignItems: 'center', gap: 10,
+                            paddingVertical: 8,
+                            paddingLeft: showSvcColor && svcColor ? 6 : 0,
+                            borderBottomWidth: i < recent.length - 1 ? 1 : 0,
+                            borderBottomColor: 'rgba(0,0,0,0.05)',
+                            backgroundColor: showSvcColor && svcColor ? `${svcColor}18` : 'transparent',
+                            borderLeftWidth: showSvcColor && svcColor ? 3 : 0,
+                            borderLeftColor: svcColor ?? 'transparent',
+                            borderRadius: 4,
+                          }}
+                        >
+                          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ color: 'white', fontSize: 12, fontWeight: '700' }}>{inits(r.client_prenom, r.client_nom)}</Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827' }} numberOfLines={1}>
+                              {clientName(r)}{r.choix_direct ? ' ❤️' : ''}
+                            </Text>
+                            <Text style={{ fontSize: 11, color: '#9ca3af' }} numberOfLines={1}>
+                              {r.service || '—'}{r.employee_id ? ` • ✂️ ${(() => { const emp = allEmployes.find(e => e.id === r.employee_id); return emp ? [emp.prenom, emp.nom].filter(Boolean).join(' ') : '' })()}` : ''}
+                            </Text>
+                            {r.created_at && <Text style={{ fontSize: 10, color: '#c4b5fd' }} numberOfLines={1}>📅 {new Date(r.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</Text>}
+                          </View>
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={{ fontSize: 11, color: '#9ca3af', marginBottom: 2 }}>{r.date_rdv} {r.heure_rdv?.slice(0, 5)}</Text>
+                            <View style={{ backgroundColor: sc.bg, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 }}>
+                              <Text style={{ fontSize: 10, fontWeight: '600', color: sc.color }}>{STATUS_LABEL[r.statut] ?? r.statut}</Text>
+                            </View>
+                          </View>
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </ScrollView>
+                )}
+              </View>
+            </View>
+
+            {/* COLONNE CENTRE flex:4.5 */}
+            <View style={{ flex: 4.5 }}>
+              {/* KPI row: Réservations + Revenus */}
+              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
+                <LinearGradient
+                  colors={['#a855f7', '#ec4899']}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                  style={{ flex: 1, borderRadius: 20, padding: 16 }}
+                >
+                  <Text style={{ fontSize: 10, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, color: 'rgba(255,255,255,0.8)', marginBottom: 8 }}>Réservations</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={{ fontSize: 22, fontWeight: '800', color: 'white' }}>{resCount}</Text>
+                      <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.75)', marginTop: 2 }}>reçues</Text>
+                    </View>
+                    <View style={{ width: 1.5, height: 36, backgroundColor: 'rgba(255,255,255,0.4)', borderRadius: 1 }} />
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={{ fontSize: 22, fontWeight: '800', color: 'white' }}>{completedCount}</Text>
+                      <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.75)', marginTop: 2 }}>complétées</Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)', marginTop: 4 }}>cette semaine</Text>
+                </LinearGradient>
+                <KpiCard label="Revenus" value={`${revenue.toFixed(0)} $`} sub="cette semaine" />
+              </View>
+
+              {/* Taux de croissance */}
+              <View style={[s.card, { marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+                <View>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>Taux de croissance</Text>
+                  <Text style={{ fontSize: 24, fontWeight: '800', marginTop: 4, color: growthRate !== null && growthRate >= 0 ? '#16a34a' : '#dc2626' }}>
+                    {growthRate !== null ? (growthRate > 0 ? '+' : '') + growthRate + '%' : '—'}
+                  </Text>
+                  <Text style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>cette semaine</Text>
+                </View>
+                <View style={{ width: 1, alignSelf: 'stretch', backgroundColor: 'rgba(0,0,0,0.08)' }} />
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>Complétées hier</Text>
+                  <Text style={{ fontSize: 24, fontWeight: '800', color: '#7c3aed', marginTop: 4 }}>{completedYesterday}</Text>
+                  <Text style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>hier</Text>
+                </View>
+              </View>
+
+              {/* Annulations / Absents */}
+              <View style={[s.card, { marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+                <View>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>Annulations</Text>
+                  <Text style={{ fontSize: 24, fontWeight: '800', color: '#dc2626', marginTop: 4 }}>{cancelledCount}</Text>
+                  <Text style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>cette semaine</Text>
+                </View>
+                <View style={{ width: 1, alignSelf: 'stretch', backgroundColor: 'rgba(0,0,0,0.08)' }} />
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>Absents</Text>
+                  <Text style={{ fontSize: 24, fontWeight: '800', color: '#7c3aed', marginTop: 4 }}>{noShowCount}</Text>
+                  <Text style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>cette semaine</Text>
+                </View>
+              </View>
+
+              {/* Graphique barres 7 jours */}
+              <View style={[s.card, { marginBottom: 12 }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>Réservations 7 jours</Text>
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <LegendDot color="#F9A310" label="Sem. précédente" />
+                    <LegendDot color="#a855f7" label="Cette semaine" />
+                  </View>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 80 }}>
+                  {dayLabels.map((day, i) => (
+                    <View key={day} style={{ flex: 1, alignItems: 'center', gap: 2 }}>
+                      <View style={{ width: '100%', gap: 2, alignItems: 'center', justifyContent: 'flex-end', height: 64, flexDirection: 'row' }}>
+                        <View style={{ width: '45%', height: Math.max(4, (prevWeekData[i] / maxVal) * 60), backgroundColor: '#F9A310', borderRadius: 3 }} />
+                        <View style={{ width: '45%', height: Math.max(4, (weekData[i] / maxVal) * 60), backgroundColor: '#a855f7', borderRadius: 3 }} />
+                      </View>
+                      <Text style={{ fontSize: 10, color: '#9ca3af' }}>{day}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              {/* Graphique revenus — placeholder */}
+              <View style={[s.card, { alignItems: 'center', justifyContent: 'center', minHeight: 160 }]}>
+                <Text style={{ color: '#9ca3af', fontSize: 13 }}>Graphique revenus — à venir</Text>
+              </View>
+            </View>
+
+            {/* COLONNE DROITE flex:2.5 */}
+            <View style={{ flex: 2.5 }}>
+              {/* Taux de remplissage */}
+              <View style={[s.card, { alignItems: 'center', marginBottom: 12 }]}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827', marginBottom: 12 }}>Taux de Remplissage du jour</Text>
+                <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
+                  <ProgressRing pct={tauxRemplissage} size={120} />
+                  <View style={{ position: 'absolute' }}>
+                    <Text style={{ fontSize: 22, fontWeight: '800', color: '#7c3aed', textAlign: 'center' }}>{tauxRemplissage}%</Text>
+                  </View>
+                </View>
+                <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 8 }}>{minutesOccupees} min / {minutesDispo} min disponibles</Text>
+              </View>
+
+              {/* Calendrier — placeholder */}
+              <View style={{
+                backgroundColor: 'rgba(255,255,255,0.9)',
+                borderRadius: 20, padding: 16, marginTop: 12,
+                alignItems: 'center', justifyContent: 'center',
+                minHeight: 200,
+                shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.1, shadowRadius: 16, elevation: 4,
+                borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)',
+              }}>
+                <Text style={{ color: '#9ca3af', fontSize: 13 }}>Calendrier — à venir</Text>
+              </View>
+            </View>
+
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    )
+  }
+
+  // ── PHONE LAYOUT — inchangé ──────────────────────────────────
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f3ff' }} edges={['top']}>
       <ScrollView
