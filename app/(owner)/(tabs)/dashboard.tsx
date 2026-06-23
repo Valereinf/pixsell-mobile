@@ -100,6 +100,8 @@ export default function DashboardScreen() {
   const [rdvAujourdhui, setRdvAujourdhui] = useState(0)
   const [weekData, setWeekData] = useState<number[]>(Array(7).fill(0))
   const [prevWeekData, setPrevWeekData] = useState<number[]>(Array(7).fill(0))
+  const [revenueThisWeek, setRevenueThisWeek] = useState<number[]>(Array(7).fill(0))
+  const [revenuePrevWeek, setRevenuePrevWeek] = useState<number[]>(Array(7).fill(0))
   const [growthRate, setGrowthRate] = useState<number | null>(null)
   const [tauxRemplissage, setTauxRemplissage] = useState(0)
   const [minutesOccupees, setMinutesOccupees] = useState(0)
@@ -281,14 +283,23 @@ export default function DashboardScreen() {
 
     const thisWeek = Array(7).fill(0)
     const prevWeek = Array(7).fill(0)
+    const revenueThis = Array(7).fill(0)
+    const revenuePrev = Array(7).fill(0)
     const wsMs = new Date(weekStartISO + 'T00:00:00').getTime()
     for (const r of twoWeekResas ?? []) {
       const diff = Math.round((new Date(r.date_rdv + 'T00:00:00').getTime() - wsMs) / 86_400_000)
-      if (diff >= 0 && diff < 7) thisWeek[diff] += 1
-      else if (diff >= -7 && diff < 0) prevWeek[diff + 7] += 1
+      if (diff >= 0 && diff < 7) {
+        thisWeek[diff] += 1
+        if (r.statut === 'completed') revenueThis[diff] += Number(r.prix) || 0
+      } else if (diff >= -7 && diff < 0) {
+        prevWeek[diff + 7] += 1
+        if (r.statut === 'completed') revenuePrev[diff + 7] += Number(r.prix) || 0
+      }
     }
     setWeekData(thisWeek)
     setPrevWeekData(prevWeek)
+    setRevenueThisWeek(revenueThis)
+    setRevenuePrevWeek(revenuePrev)
 
     const thisWeekTotal = thisWeek.reduce((a, b) => a + b, 0)
     const prevWeekTotal = prevWeek.reduce((a, b) => a + b, 0)
@@ -566,9 +577,52 @@ const maxVal = Math.max(...weekData, ...prevWeekData, 1)
                 </View>
               </View>
 
-              {/* Graphique revenus — placeholder */}
-              <View style={[s.card, { alignItems: 'center', justifyContent: 'center', minHeight: 160 }]}>
-                <Text style={{ color: '#9ca3af', fontSize: 13 }}>Graphique revenus — à venir</Text>
+              {/* Graphique revenus */}
+              <View style={[s.card, { marginBottom: 12 }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>Revenus</Text>
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#f9a8d4' }} />
+                      <Text style={{ fontSize: 10, color: '#9ca3af' }}>Sem. précédente</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#a855f7' }} />
+                      <Text style={{ fontSize: 10, color: '#9ca3af' }}>Cette semaine</Text>
+                    </View>
+                  </View>
+                </View>
+                {(() => {
+                  const maxRev = Math.max(...revenueThisWeek, ...revenuePrevWeek, 1)
+                  return (
+                    <View style={{ height: 120 }}>
+                      {[0.25, 0.5, 0.75, 1].map(pct => (
+                        <View key={pct} style={{
+                          position: 'absolute', left: 0, right: 0,
+                          bottom: pct * 96,
+                          height: 1, backgroundColor: 'rgba(0,0,0,0.05)',
+                        }} />
+                      ))}
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 96, gap: 4 }}>
+                        {dayLabels.map((day, i) => (
+                          <View key={day} style={{ flex: 1, alignItems: 'center', gap: 2 }}>
+                            <View style={{ width: '100%', flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', height: 90, gap: 2 }}>
+                              <View style={{ width: '45%', height: Math.max(2, (revenuePrevWeek[i] / maxRev) * 86), backgroundColor: '#f9a8d4', borderRadius: 2 }} />
+                              <View style={{ width: '45%', height: Math.max(2, (revenueThisWeek[i] / maxRev) * 86), backgroundColor: '#a855f7', borderRadius: 2 }} />
+                            </View>
+                            <Text style={{ fontSize: 9, color: '#9ca3af' }}>{day}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )
+                })()}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)' }}>
+                  <Text style={{ fontSize: 11, color: '#9ca3af' }}>Total cette semaine</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#7c3aed' }}>
+                    {revenueThisWeek.reduce((a, b) => a + b, 0).toFixed(0)} $
+                  </Text>
+                </View>
               </View>
             </View>
 
