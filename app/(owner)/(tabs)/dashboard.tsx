@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, Image,
   StyleSheet, Dimensions, AppState, type AppStateStatus,
@@ -108,6 +108,12 @@ export default function DashboardScreen() {
   const [minutesDispo, setMinutesDispo] = useState(0)
   const [allEmployes, setAllEmployes] = useState<{ id: string; nom: string; prenom: string | null }[]>([])
   const [allServices, setAllServices] = useState<{ id: string; nom: string; couleur: string | null }[]>([])
+  const [resaDates, setResaDates]           = useState<Set<string>>(new Set())
+  const [calYear, setCalYear]               = useState(new Date().getFullYear())
+  const [calMonth, setCalMonth]             = useState(new Date().getMonth())
+  const [selectedCalDate, setSelectedCalDate] = useState<string | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [selectedDayResas, setSelectedDayResas] = useState<any[]>([])
   const { width: screenWidth } = useWindowDimensions()
   const isTablet = screenWidth >= 768
 
@@ -381,11 +387,66 @@ export default function DashboardScreen() {
     return () => sub.remove()
   }, [company?.id])
 
+  // ── Calendar dates fetch ──────────────────────────────────────
+  useEffect(() => {
+    if (!company?.id) return
+    const m     = calMonth + 1
+    const y     = calYear
+    const nextY = m === 12 ? y + 1 : y
+    const nextM = m === 12 ? 1 : m + 1
+    const from  = `${y}-${String(m).padStart(2, '0')}-01`
+    const to    = `${nextY}-${String(nextM).padStart(2, '0')}-01`
+    supabase.from('reservations')
+      .select('date_rdv')
+      .eq('company_id', company.id)
+      .gte('date_rdv', from)
+      .lt('date_rdv', to)
+      .then(({ data }) => {
+        setResaDates(new Set((data ?? []).map(r => r.date_rdv as string)))
+      })
+  }, [company?.id, calYear, calMonth])
+
+  // ── loadDayResas ──────────────────────────────────────────────
+  const loadDayResas = async (iso: string) => {
+    if (!company?.id) return
+    setSelectedCalDate(iso)
+    const { data } = await supabase
+      .from('reservations')
+      .select('id, heure_rdv, client_prenom, client_nom, service, statut, employee_id')
+      .eq('company_id', company.id)
+      .eq('date_rdv', iso)
+      .order('heure_rdv', { ascending: true })
+    setSelectedDayResas(data ?? [])
+  }
+
   const ownerInitials = ownerName
     ? ownerName.split(' ').map(w => w[0] ?? '').join('').toUpperCase().slice(0, 2) || (company?.name ?? '??').slice(0, 2).toUpperCase()
     : (company?.name ?? '??').slice(0, 2).toUpperCase()
 const maxVal = Math.max(...weekData, ...prevWeekData, 1)
   const dayLabels = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di']
+
+  // ── Calendar helpers ──────────────────────────────────────────
+  const calDays = useMemo(() => {
+    const firstDay = new Date(calYear, calMonth, 1)
+    const lastDay  = new Date(calYear, calMonth + 1, 0)
+    const offset   = (firstDay.getDay() + 6) % 7
+    const days: (number | null)[] = []
+    for (let i = 0; i < offset; i++) days.push(null)
+    for (let d = 1; d <= lastDay.getDate(); d++) days.push(d)
+    return days
+  }, [calYear, calMonth])
+
+  const prevMonth = () => {
+    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11) }
+    else setCalMonth(m => m - 1)
+  }
+  const nextMonth = () => {
+    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0) }
+    else setCalMonth(m => m + 1)
+  }
+  const monthLabel = new Date(calYear, calMonth)
+    .toLocaleDateString('fr-CA', { month: 'long', year: 'numeric' })
+  const todayStr = new Date().toLocaleDateString('en-CA')
 
   if (!company) {
     return (
@@ -640,18 +701,124 @@ const maxVal = Math.max(...weekData, ...prevWeekData, 1)
                 <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 8 }}>{minutesOccupees} min / {minutesDispo} min disponibles</Text>
               </View>
 
-              {/* Calendrier — placeholder */}
+              {/* Calendrier mensuel */}
               <View style={{
                 backgroundColor: 'rgba(255,255,255,0.9)',
                 borderRadius: 20, padding: 16, marginTop: 12,
-                alignItems: 'center', justifyContent: 'center',
-                minHeight: 200,
                 shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.1, shadowRadius: 16, elevation: 4,
                 borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)',
               }}>
-                <Text style={{ color: '#9ca3af', fontSize: 13 }}>Calendrier — à venir</Text>
+                {/* Header navigation */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827', textTransform: 'capitalize' }}>
+                    {monthLabel}
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 4 }}>
+                    <TouchableOpacity onPress={prevMonth} style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(124,58,237,0.08)', alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ color: '#7c3aed', fontSize: 14, lineHeight: 16 }}>‹</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={nextMonth} style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(124,58,237,0.08)', alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ color: '#7c3aed', fontSize: 14, lineHeight: 16 }}>›</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Headers jours */}
+                <View style={{ flexDirection: 'row', marginBottom: 4 }}>
+                  {['Lu','Ma','Me','Je','Ve','Sa','Di'].map(d => (
+                    <Text key={d} style={{ flex: 1, fontSize: 10, color: '#9ca3af', fontWeight: '600', textAlign: 'center' }}>{d}</Text>
+                  ))}
+                </View>
+
+                {/* Grille jours */}
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                  {calDays.map((day, i) => {
+                    if (day === null) {
+                      return <View key={`e-${i}`} style={{ width: '14.28%', height: 28 }} />
+                    }
+                    const iso = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+                    const isToday    = iso === todayStr
+                    const hasRdv     = resaDates.has(iso)
+                    const isSelected = iso === selectedCalDate
+                    return (
+                      <TouchableOpacity
+                        key={iso}
+                        onPress={() => hasRdv && loadDayResas(iso)}
+                        style={{ width: '14.28%', height: 28, alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <View style={{
+                          width: 24, height: 24, borderRadius: 12,
+                          alignItems: 'center', justifyContent: 'center',
+                          backgroundColor: isToday
+                            ? '#7c3aed'
+                            : isSelected ? 'rgba(168,85,247,0.2)'
+                            : hasRdv ? 'rgba(168,85,247,0.1)'
+                            : 'transparent',
+                        }}>
+                          <Text style={{
+                            fontSize: 12,
+                            fontWeight: isToday ? '700' : hasRdv ? '600' : '400',
+                            color: isToday ? 'white' : hasRdv ? '#7c3aed' : '#4b5563',
+                          }}>{day}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    )
+                  })}
+                </View>
               </View>
+
+              {/* Panel RDV du jour sélectionné */}
+              {selectedCalDate !== null && selectedDayResas.length > 0 && (
+                <View style={{
+                  backgroundColor: 'rgba(255,255,255,0.9)',
+                  borderRadius: 20, padding: 16, marginTop: 12,
+                  shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.1, shadowRadius: 16, elevation: 4,
+                  borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)',
+                  maxHeight: 300,
+                }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827', marginBottom: 8 }}>
+                    RDV du {new Date(selectedCalDate + 'T12:00:00').toLocaleDateString('fr-CA', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  </Text>
+                  <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                    {selectedDayResas.map((r: { id: string; heure_rdv: string | null; client_prenom: string | null; client_nom: string | null; service: string | null; statut: string; employee_id: string | null }) => {
+                      const statutColors: Record<string, { bg: string; text: string }> = {
+                        confirmed: { bg: '#dbeafe', text: '#1d4ed8' },
+                        completed: { bg: '#dcfce7', text: '#15803d' },
+                        cancelled: { bg: '#fee2e2', text: '#dc2626' },
+                        no_show:   { bg: '#fef3c7', text: '#d97706' },
+                        pending:   { bg: '#f3f4f6', text: '#6b7280' },
+                      }
+                      const sc = statutColors[r.statut] ?? statutColors.pending
+                      const empRow = allEmployes.find(e => e.id === r.employee_id)
+                      const empLabel = empRow ? [empRow.prenom, empRow.nom].filter(Boolean).join(' ') : ''
+                      return (
+                        <View key={r.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
+                          <Text style={{ fontSize: 11, color: '#9ca3af', width: 36 }}>{r.heure_rdv?.slice(0, 5)}</Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 12, fontWeight: '600', color: '#111827' }} numberOfLines={1}>
+                              {[r.client_prenom, r.client_nom].filter(Boolean).join(' ') || '—'}
+                            </Text>
+                            <Text style={{ fontSize: 10, color: '#9ca3af' }} numberOfLines={1}>
+                              {r.service ?? ''}{empLabel ? ` • ✂️ ${empLabel}` : ''}
+                            </Text>
+                          </View>
+                          <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, backgroundColor: sc.bg }}>
+                            <Text style={{ fontSize: 9, fontWeight: '600', color: sc.text }}>
+                              {r.statut === 'confirmed' ? 'Confirmé'
+                                : r.statut === 'completed' ? 'Complété'
+                                : r.statut === 'cancelled' ? 'Annulé'
+                                : r.statut === 'no_show'   ? 'Absent'
+                                : 'En attente'}
+                            </Text>
+                          </View>
+                        </View>
+                      )
+                    })}
+                  </ScrollView>
+                </View>
+              )}
             </View>
 
           </View>
