@@ -460,11 +460,7 @@ const maxVal = Math.max(...weekData, ...prevWeekData, 1)
   if (isTablet) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f3ff' }} edges={['top']}>
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 32 }}
-          showsVerticalScrollIndicator={false}
-        >
+        <View style={{ flex: 1 }}>
           {/* ── TABLET: Header ── */}
           <View style={[s.card, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', margin: 16, marginBottom: 0 }]}>
             <View>
@@ -485,10 +481,10 @@ const maxVal = Math.max(...weekData, ...prevWeekData, 1)
           </View>
 
           {/* ── TABLET: Body 3 colonnes ── */}
-          <View style={{ flexDirection: 'row', gap: 16, padding: 16 }}>
+          <View style={{ flex: 1, flexDirection: 'row', gap: 16, padding: 16 }}>
 
             {/* COLONNE GAUCHE flex:3 */}
-            <View style={{ flex: 3 }}>
+            <View style={{ flex: 3, height: '100%' }}>
               {/* Carte salon */}
               <View style={[s.card, { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }]}>
                 {company?.logo_url ? (
@@ -505,12 +501,12 @@ const maxVal = Math.max(...weekData, ...prevWeekData, 1)
               </View>
 
               {/* Activités récentes */}
-              <View style={s.card}>
+              <View style={[s.card, { flex: 1, marginTop: 12, paddingHorizontal: 4 }]}>
                 <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827', marginBottom: 12 }}>Activités récentes</Text>
                 {recent.length === 0 ? (
                   <Text style={{ fontSize: 13, color: '#9ca3af', textAlign: 'center', paddingVertical: 12 }}>Aucune activité</Text>
                 ) : (
-                  <ScrollView nestedScrollEnabled={true} showsVerticalScrollIndicator={false}>
+                  <ScrollView nestedScrollEnabled={true} showsVerticalScrollIndicator={true} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 16 }}>
                     {recent.map((r, i) => {
                       const sc           = STATUS_COLOR[r.statut] ?? STATUS_COLOR.pending
                       const showSvcColor = company?.couleur_service_enabled !== false
@@ -822,7 +818,7 @@ const maxVal = Math.max(...weekData, ...prevWeekData, 1)
             </View>
 
           </View>
-        </ScrollView>
+        </View>
       </SafeAreaView>
     )
   }
