@@ -487,8 +487,8 @@ const maxVal = Math.max(...weekData, ...prevWeekData, 1)
           {/* ── TABLET: Body 3 colonnes ── */}
           <View style={{ flexDirection: 'row', gap: 16, padding: 16 }}>
 
-            {/* COLONNE GAUCHE flex:3 */}
-            <View style={{ flex: 3 }}>
+            {/* COLONNE GAUCHE flex:4 */}
+            <View style={{ flex: 4 }}>
               {/* Carte salon */}
               <View style={[s.card, { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }]}>
                 {company?.logo_url ? (
