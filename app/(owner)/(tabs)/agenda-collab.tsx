@@ -12,7 +12,7 @@ import { useOwnerContext } from '../../../lib/ownerContext'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type TabId = 'calendrier' | 'horaires' | 'demandes'
+type TabId = 'calendrier' | 'horaires' | 'demandes' | 'feries'
 type StatutJour = 'travaille' | 'conge' | 'maladie' | 'permission' | 'formation' | 'indisponible'
 type TypeDemande = 'conge' | 'maladie' | 'permission' | 'changement_horaire' | 'extra_shift' | 'document_administratif'
 type JourKey = 'dim' | 'lun' | 'mar' | 'mer' | 'jeu' | 'ven' | 'sam'
@@ -34,9 +34,25 @@ interface PauseModalState {
   dates: string[]
 }
 interface JourHoraire { actif: boolean; debut: string; fin: string; pauses: Pause[] }
-interface Exception { id: string; debut: string; fin: string; raison: string }
+interface Exception { id: string; debut: string; debut_heure: string; fin: string; fin_heure: string; raison: string }
+interface Override {
+  id:     string
+  date:   string
+  debut:  string
+  fin:    string
+  actif:  boolean
+  raison: string
+}
+interface JourFerie {
+  id: string; company_id: string
+  date: string; nom: string; est_auto: boolean
+}
+interface Fermeture {
+  id: string; ferie_id: string
+  employe_id: string | null
+}
 type WeeklyHoraires = Record<JourKey, JourHoraire>
-interface EmpData { horaires: WeeklyHoraires; exceptions: Exception[]; dirty: boolean; saving: boolean }
+interface EmpData { horaires: WeeklyHoraires; exceptions: Exception[]; overrides: Override[]; dirty: boolean; saving: boolean }
 interface StatutRow { id: string; employe_id: string; date_statut: string; statut: StatutJour; note: string | null }
 interface DemandeRow {
   id: string; employe_id: string; type_demande: TypeDemande
@@ -89,6 +105,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'calendrier', label: '📅 Calendrier' },
   { id: 'horaires',   label: '🕐 Horaires' },
   { id: 'demandes',   label: '📋 Demandes RH' },
+  { id: 'feries',     label: '🎌 Fériés' },
 ]
 
 const STATUTS_LIST = Object.entries(STATUS_CONFIG) as [StatutJour, typeof STATUS_CONFIG[StatutJour]][]
@@ -167,6 +184,85 @@ function parseHoraires(raw: Record<string, unknown> | null): WeeklyHoraires {
       })),
     }]
   })) as WeeklyHoraires
+}
+
+function parseExceptions(raw: unknown[]): Exception[] {
+  return (raw ?? []).map((e) => {
+    const ex = e as Partial<Exception>
+    return {
+      id:          ex.id          ?? uid(),
+      debut:       ex.debut       ?? '',
+      debut_heure: ex.debut_heure ?? '00:00',
+      fin:         ex.fin         ?? '',
+      fin_heure:   ex.fin_heure   ?? '23:59',
+      raison:      ex.raison      ?? '',
+    }
+  })
+}
+
+function parseOverrides(raw: unknown[]): Override[] {
+  return (raw ?? []).map((o) => {
+    const ov = o as Partial<Override>
+    return {
+      id:     ov.id     ?? uid(),
+      date:   ov.date   ?? '',
+      debut:  ov.debut  ?? '09:00',
+      fin:    ov.fin    ?? '17:00',
+      actif:  ov.actif  ?? true,
+      raison: ov.raison ?? '',
+    }
+  })
+}
+
+function getFeriesQuebec(year: number): Array<{ date: string; nom: string }> {
+  function getPaques(y: number): Date {
+    const a = y % 19
+    const b = Math.floor(y / 100)
+    const c = y % 100
+    const d = Math.floor(b / 4)
+    const e = b % 4
+    const f = Math.floor((b + 8) / 25)
+    const g = Math.floor((b - f + 1) / 3)
+    const h = (19 * a + b - d - g + 15) % 30
+    const i = Math.floor(c / 4)
+    const k = c % 4
+    const l = (32 + 2 * e + 2 * i - h - k) % 7
+    const m = Math.floor((a + 11 * h + 22 * l) / 451)
+    const month = Math.floor((h + l - 7 * m + 114) / 31)
+    const day = ((h + l - 7 * m + 114) % 31) + 1
+    return new Date(y, month - 1, day)
+  }
+  function fmt(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+  function addDays(d: Date, n: number): Date {
+    const r = new Date(d); r.setDate(r.getDate() + n); return r
+  }
+  function nthMonday(y: number, month: number, n: number): Date {
+    const d = new Date(y, month - 1, 1)
+    const dow = d.getDay()
+    const first = dow === 1 ? d : new Date(y, month - 1, 1 + (8 - dow) % 7)
+    return new Date(y, month - 1, first.getDate() + (n - 1) * 7)
+  }
+  function lastMondayBefore(y: number, month: number, day: number): Date {
+    const ref = new Date(y, month - 1, day)
+    const dow = ref.getDay()
+    const diff = dow === 1 ? 0 : (dow === 0 ? 6 : dow - 1)
+    return new Date(y, month - 1, day - diff)
+  }
+  const paques = getPaques(year)
+  return [
+    { date: `${year}-01-01`, nom: "Jour de l'An" },
+    { date: fmt(addDays(paques, -2)), nom: 'Vendredi Saint' },
+    { date: fmt(addDays(paques, 1)),  nom: 'Lundi de Pâques' },
+    { date: fmt(lastMondayBefore(year, 5, 25)), nom: 'Fête des Patriotes' },
+    { date: `${year}-06-24`, nom: 'Fête Nationale du Québec' },
+    { date: `${year}-07-01`, nom: 'Fête du Canada' },
+    { date: fmt(nthMonday(year, 9, 1)), nom: 'Fête du Travail' },
+    { date: fmt(nthMonday(year, 10, 2)), nom: "Action de Grâce" },
+    { date: `${year}-12-25`, nom: 'Noël' },
+    { date: `${year}-12-26`, nom: 'Lendemain de Noël' },
+  ].sort((a, b) => a.date.localeCompare(b.date))
 }
 
 const DEFAULT_HORAIRES: WeeklyHoraires = {
@@ -290,6 +386,11 @@ export default function AgendaCollabScreen() {
   const [refusMotif, setRefusMotif]  = useState('')
   const [actionSaving, setActionSaving] = useState(false)
 
+  // P3 — Jours fériés
+  const [feries, setFeries]             = useState<JourFerie[]>([])
+  const [fermetures, setFermetures]     = useState<Fermeture[]>([])
+  const [feriesAnnee, setFeriesAnnee]   = useState(new Date().getFullYear())
+
   // ── Load ──────────────────────────────────────────────────────────
   useEffect(() => { if (company) loadAll() }, [company?.id])
   useEffect(() => { if (company) loadStatuts() }, [company?.id, weekDates])
@@ -299,7 +400,7 @@ export default function AgendaCollabScreen() {
     const cid = company!.id
     const [{ data: emps }, { data: horairesRows }, { data: demandesRows }, { data: soldesRows }] = await Promise.all([
       supabase.from('employes').select('id, nom, photo_url, couleur_agenda').eq('company_id', cid).eq('actif', true).order('nom'),
-      supabase.from('employe_horaires').select('employe_id, horaires, exceptions').eq('company_id', cid),
+      supabase.from('employe_horaires').select('employe_id, horaires, exceptions, overrides').eq('company_id', cid),
       supabase.from('employe_demandes_rh').select('*').eq('company_id', cid).order('created_at', { ascending: false }),
       supabase.from('v_employe_solde_vacances').select('employe_id, nom, prenom, jours_vacances_annuels, jours_utilises, jours_restants').eq('company_id', cid),
     ])
@@ -311,10 +412,11 @@ export default function AgendaCollabScreen() {
     const map: Record<string, EmpData> = {}
     empList.forEach(emp => {
       const row = (horairesRows ?? []).find((r: { employe_id: string }) => r.employe_id === emp.id) as
-        { employe_id: string; horaires: Record<string, unknown> | null; exceptions: Exception[] | null } | undefined
+        { employe_id: string; horaires: Record<string, unknown> | null; exceptions: unknown[] | null; overrides?: unknown[] } | undefined
       map[emp.id] = {
-        horaires: parseHoraires(row?.horaires ?? null),
-        exceptions: (row?.exceptions ?? []) as Exception[],
+        horaires:   parseHoraires(row?.horaires ?? null),
+        exceptions: parseExceptions(row?.exceptions ?? []),
+        overrides:  parseOverrides(row?.overrides ?? []),
         dirty: false, saving: false,
       }
     })
@@ -457,7 +559,7 @@ export default function AgendaCollabScreen() {
   function addException(empId: string) {
     setEmpData(prev => {
       const d = { ...prev[empId] }
-      d.exceptions = [...d.exceptions, { id: uid(), debut: todayISO(), fin: todayISO(), raison: '' }]
+      d.exceptions = [...d.exceptions, { id: uid(), debut: todayISO(), debut_heure: '00:00', fin: todayISO(), fin_heure: '23:59', raison: '' }]
       d.dirty = true
       return { ...prev, [empId]: d }
     })
@@ -472,7 +574,7 @@ export default function AgendaCollabScreen() {
     })
   }
 
-  function setExceptionField(empId: string, exId: string, field: 'debut' | 'fin' | 'raison', value: string) {
+  function setExceptionField(empId: string, exId: string, field: 'debut' | 'debut_heure' | 'fin' | 'fin_heure' | 'raison', value: string) {
     setEmpData(prev => {
       const d = { ...prev[empId] }
       d.exceptions = d.exceptions.map(e => e.id === exId ? { ...e, [field]: value } : e)
@@ -486,7 +588,7 @@ export default function AgendaCollabScreen() {
     setEmpData(prev => ({ ...prev, [empId]: { ...prev[empId], saving: true } }))
     const data = empData[empId]
     await supabase.from('employe_horaires').upsert(
-      { company_id: company.id, employe_id: empId, horaires: data.horaires, exceptions: data.exceptions },
+      { company_id: company.id, employe_id: empId, horaires: data.horaires, exceptions: data.exceptions, overrides: data.overrides },
       { onConflict: 'company_id,employe_id' }
     )
     setEmpData(prev => ({ ...prev, [empId]: { ...prev[empId], dirty: false, saving: false } }))
@@ -597,6 +699,93 @@ export default function AgendaCollabScreen() {
     })
     setGratMsg(''); setGratMontant('')
     setGratSaving(false)
+  }
+
+  // ── Overrides CRUD ───────────────────────────────────────────────
+
+  function addOverride(empId: string) {
+    setEmpData(prev => {
+      const d = { ...prev[empId] }
+      d.overrides = [...d.overrides, { id: uid(), date: '', debut: '09:00', fin: '17:00', actif: true, raison: '' }]
+      d.dirty = true
+      return { ...prev, [empId]: d }
+    })
+  }
+
+  function setOverrideField(empId: string, ovId: string, field: keyof Override, val: string | boolean) {
+    setEmpData(prev => {
+      const d = { ...prev[empId] }
+      d.overrides = d.overrides.map(o => o.id === ovId ? { ...o, [field]: val } : o)
+      d.dirty = true
+      return { ...prev, [empId]: d }
+    })
+  }
+
+  function removeOverride(empId: string, ovId: string) {
+    setEmpData(prev => {
+      const d = { ...prev[empId] }
+      d.overrides = d.overrides.filter(o => o.id !== ovId)
+      d.dirty = true
+      return { ...prev, [empId]: d }
+    })
+  }
+
+  // ── Jours fériés ─────────────────────────────────────────────────
+
+  useEffect(() => { if (tab === 'feries' && company) loadFeries() }, [company?.id, tab, feriesAnnee])
+
+  async function loadFeries() {
+    if (!company) return
+    const { data: f } = await supabase
+      .from('jours_feries')
+      .select('id, company_id, date, nom, est_auto')
+      .eq('company_id', company.id)
+      .order('date')
+    const feriesForYear = (f ?? []).filter((x: { date: string }) => x.date.startsWith(String(feriesAnnee)))
+    if (feriesForYear.length === 0) {
+      const generated = getFeriesQuebec(feriesAnnee)
+      await supabase.from('jours_feries').insert(
+        generated.map(g => ({ ...g, company_id: company.id, est_auto: true }))
+      )
+      loadFeries()
+      return
+    }
+    setFeries((f ?? []) as JourFerie[])
+    const { data: fm } = await supabase
+      .from('jours_feries_fermetures')
+      .select('id, ferie_id, employe_id')
+      .eq('company_id', company.id)
+    setFermetures((fm ?? []) as Fermeture[])
+  }
+
+  async function toggleSalon(ferieId: string) {
+    if (!company) return
+    const existing = fermetures.filter(f => f.ferie_id === ferieId)
+    const salonFerme = existing.some(f => f.employe_id === null)
+    if (salonFerme) {
+      await supabase.from('jours_feries_fermetures').delete().in('id', existing.map(f => f.id))
+      setFermetures(prev => prev.filter(f => f.ferie_id !== ferieId))
+    } else {
+      await supabase.from('jours_feries_fermetures').delete().in('id', existing.map(f => f.id))
+      const { data } = await supabase.from('jours_feries_fermetures')
+        .insert({ company_id: company.id, ferie_id: ferieId, employe_id: null })
+        .select('id, ferie_id, employe_id').single()
+      if (data) setFermetures(prev => [...prev.filter(f => f.ferie_id !== ferieId), data as Fermeture])
+    }
+  }
+
+  async function toggleEmp(ferieId: string, empId: string) {
+    if (!company) return
+    const existing = fermetures.find(f => f.ferie_id === ferieId && f.employe_id === empId)
+    if (existing) {
+      await supabase.from('jours_feries_fermetures').delete().eq('id', existing.id)
+      setFermetures(prev => prev.filter(f => f.id !== existing.id))
+    } else {
+      const { data } = await supabase.from('jours_feries_fermetures')
+        .insert({ company_id: company.id, ferie_id: ferieId, employe_id: empId })
+        .select('id, ferie_id, employe_id').single()
+      if (data) setFermetures(prev => [...prev, data as Fermeture])
+    }
   }
 
   // ── Render horaire card ───────────────────────────────────────────
@@ -715,18 +904,32 @@ export default function AgendaCollabScreen() {
           <Text style={[s.subTitle, { marginBottom: 8 }]}>Exceptions de période</Text>
           {data.exceptions.map(ex => (
             <View key={ex.id} style={{ backgroundColor: '#fff7ed', borderRadius: 10, padding: 10, marginBottom: 8, gap: 6 }}>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 11, color: '#92400e', marginBottom: 2 }}>Début</Text>
-                  <TextInput style={s.input} value={ex.debut} onChangeText={v => setExceptionField(emp.id, ex.id, 'debut', v)} placeholder="AAAA-MM-JJ" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 11, color: '#92400e', marginBottom: 2 }}>Fin</Text>
-                  <TextInput style={s.input} value={ex.fin} onChangeText={v => setExceptionField(emp.id, ex.id, 'fin', v)} placeholder="AAAA-MM-JJ" />
-                </View>
-                <TouchableOpacity onPress={() => removeException(emp.id, ex.id)} style={{ paddingTop: 16 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 2 }}>
+                <TouchableOpacity onPress={() => removeException(emp.id, ex.id)}>
                   <Ionicons name="trash-outline" size={18} color="#dc2626" />
                 </TouchableOpacity>
+              </View>
+              <View style={{ flexDirection: 'column', gap: 6 }}>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 11, color: '#92400e', marginBottom: 2 }}>Date début</Text>
+                    <TextInput style={s.input} value={ex.debut} onChangeText={v => setExceptionField(emp.id, ex.id, 'debut', v)} placeholder="AAAA-MM-JJ" />
+                  </View>
+                  <View style={{ width: 90 }}>
+                    <Text style={{ fontSize: 11, color: '#92400e', marginBottom: 2 }}>Heure</Text>
+                    <TextInput style={s.input} value={ex.debut_heure} onChangeText={v => setExceptionField(emp.id, ex.id, 'debut_heure', v)} placeholder="00:00" keyboardType="numeric" />
+                  </View>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 11, color: '#92400e', marginBottom: 2 }}>Date fin</Text>
+                    <TextInput style={s.input} value={ex.fin} onChangeText={v => setExceptionField(emp.id, ex.id, 'fin', v)} placeholder="AAAA-MM-JJ" />
+                  </View>
+                  <View style={{ width: 90 }}>
+                    <Text style={{ fontSize: 11, color: '#92400e', marginBottom: 2 }}>Heure</Text>
+                    <TextInput style={s.input} value={ex.fin_heure} onChangeText={v => setExceptionField(emp.id, ex.id, 'fin_heure', v)} placeholder="23:59" keyboardType="numeric" />
+                  </View>
+                </View>
               </View>
               <TextInput
                 style={s.input}
@@ -740,6 +943,79 @@ export default function AgendaCollabScreen() {
             <Ionicons name="add" size={16} color="#7c3aed" />
             <Text style={{ color: '#7c3aed', fontWeight: '600', fontSize: 13 }}>Ajouter exception</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Overrides */}
+        <View style={{ borderTopWidth: 1, borderTopColor: '#f3f4f6', paddingTop: 12, marginTop: 4 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Horaires exceptionnels
+            </Text>
+            <TouchableOpacity onPress={() => addOverride(emp.id)}>
+              <Text style={{ fontSize: 12, color: '#7c3aed', fontWeight: '600' }}>+ Ajouter</Text>
+            </TouchableOpacity>
+          </View>
+          {data.overrides.length === 0 ? (
+            <Text style={{ fontSize: 12, color: '#9ca3af', textAlign: 'center', paddingVertical: 12 }}>
+              Aucun horaire exceptionnel configuré
+            </Text>
+          ) : (
+            data.overrides.map(ov => (
+              <View key={ov.id} style={{
+                backgroundColor: '#eff6ff', borderWidth: 1,
+                borderColor: '#bfdbfe', borderRadius: 12,
+                padding: 12, marginBottom: 8,
+              }}>
+                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                  <TextInput
+                    value={ov.date}
+                    onChangeText={v => setOverrideField(emp.id, ov.id, 'date', v)}
+                    placeholder="AAAA-MM-JJ"
+                    style={[s.input, { flex: 1, marginBottom: 0 }]}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setOverrideField(emp.id, ov.id, 'actif', !ov.actif)}
+                    style={{
+                      paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8,
+                      backgroundColor: ov.actif ? '#dcfce7' : '#f3f4f6',
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: ov.actif ? '#16a34a' : '#6b7280' }}>
+                      {ov.actif ? '● Travaille' : '○ Repos'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => removeOverride(emp.id, ov.id)}>
+                    <Text style={{ color: '#ef4444', fontSize: 20, lineHeight: 20 }}>×</Text>
+                  </TouchableOpacity>
+                </View>
+                {ov.actif && (
+                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                    <TextInput
+                      value={ov.debut}
+                      onChangeText={v => setOverrideField(emp.id, ov.id, 'debut', v)}
+                      placeholder="09:00"
+                      keyboardType="numeric"
+                      style={[s.timeInput, { flex: 1 }]}
+                    />
+                    <Text style={{ color: '#9ca3af' }}>→</Text>
+                    <TextInput
+                      value={ov.fin}
+                      onChangeText={v => setOverrideField(emp.id, ov.id, 'fin', v)}
+                      placeholder="17:00"
+                      keyboardType="numeric"
+                      style={[s.timeInput, { flex: 1 }]}
+                    />
+                  </View>
+                )}
+                <TextInput
+                  value={ov.raison}
+                  onChangeText={v => setOverrideField(emp.id, ov.id, 'raison', v)}
+                  placeholder="Raison (ex: Horaire exceptionnel...)"
+                  style={[s.input, { marginBottom: 0 }]}
+                />
+              </View>
+            ))
+          )}
         </View>
       </View>
     )
@@ -1135,6 +1411,84 @@ export default function AgendaCollabScreen() {
                   {gratSaving ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>Envoyer la gratification</Text>}
                 </TouchableOpacity>
               </View>
+            </ScrollView>
+          )}
+          {/* ── FÉRIÉS ── */}
+          {tab === 'feries' && (
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }}>
+                  Jours fériés {feriesAnnee}
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <TouchableOpacity onPress={() => setFeriesAnnee(y => y - 1)}>
+                    <Text style={{ color: '#7c3aed', fontWeight: '700', fontSize: 16 }}>←</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setFeriesAnnee(y => y + 1)}>
+                    <Text style={{ color: '#7c3aed', fontWeight: '700', fontSize: 16 }}>→</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <Text style={{ fontSize: 11, color: '#9ca3af', marginBottom: 12 }}>
+                Par défaut = ouvert. Touchez pour fermer.
+              </Text>
+              {feries
+                .filter(f => f.date.startsWith(String(feriesAnnee)))
+                .map(ferie => {
+                  const ferieFermetures = fermetures.filter(f => f.ferie_id === ferie.id)
+                  const salonFerme = ferieFermetures.some(f => f.employe_id === null)
+                  return (
+                    <View key={ferie.id} style={{
+                      backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 8,
+                      borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)',
+                      shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+                    }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827', flex: 1, marginRight: 8 }}>
+                          {ferie.nom}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: '#9ca3af' }}>
+                          {new Date(ferie.date + 'T12:00:00').toLocaleDateString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short' })}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <Text style={{ fontSize: 11, color: '#6b7280', width: 56 }}>SALON</Text>
+                        <TouchableOpacity onPress={() => toggleSalon(ferie.id)}>
+                          <View style={{
+                            paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20,
+                            backgroundColor: salonFerme ? '#fee2e2' : '#dcfce7',
+                          }}>
+                            <Text style={{ fontSize: 11, fontWeight: '600', color: salonFerme ? '#ef4444' : '#16a34a' }}>
+                              {salonFerme ? '✕ Fermé' : '○ Ouvert'}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      </View>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                        {employes.map(emp => {
+                          const empFerme = salonFerme || ferieFermetures.some(f => f.employe_id === emp.id)
+                          return (
+                            <TouchableOpacity
+                              key={emp.id}
+                              onPress={() => !salonFerme && toggleEmp(ferie.id, emp.id)}
+                              style={{
+                                paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1,
+                                borderColor: empFerme ? '#fca5a5' : '#86efac',
+                                backgroundColor: empFerme ? '#fee2e2' : '#dcfce7',
+                                opacity: salonFerme ? 0.5 : 1,
+                              }}
+                            >
+                              <Text style={{ fontSize: 11, fontWeight: '600', color: empFerme ? '#ef4444' : '#16a34a' }}>
+                                {emp.nom.split(' ')[0]}
+                              </Text>
+                            </TouchableOpacity>
+                          )
+                        })}
+                      </View>
+                    </View>
+                  )
+                })
+              }
             </ScrollView>
           )}
         </>
