@@ -975,6 +975,7 @@ export default function ReservationsScreen() {
   const [cancelReason, setCancelReason]   = useState('')
   const [noShowTarget, setNoShowTarget]   = useState<ReservationRow | null>(null)
   const [toast, setToast]                 = useState<string | null>(null)
+  const [noShowClients, setNoShowClients] = useState<Set<string>>(new Set())
 
   // ── Load company ───────────────────────────────────────────────
   useEffect(() => {
@@ -1002,6 +1003,16 @@ export default function ReservationsScreen() {
     setAllEmployes((empData ?? []) as EmployeRow[])
     setAllServices((svcData ?? []) as ServiceRow[])
     setLoading(false)
+
+    const { data: noShowData } = await supabase
+      .from('reservations')
+      .select('client_id')
+      .eq('company_id', company.id)
+      .eq('statut', 'no_show')
+      .not('client_id', 'is', null)
+    if (noShowData) {
+      setNoShowClients(new Set(noShowData.map(r => r.client_id as string)))
+    }
   }, [company?.id])
 
   useEffect(() => { load() }, [load])
@@ -1198,6 +1209,11 @@ export default function ReservationsScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
                   <View style={{ flex: 1, marginRight: 10 }}>
                     <Text style={{ fontSize: 15, fontWeight: '700', color: '#111827' }} numberOfLines={1}>{clientName(r)}{r.choix_direct ? ' ❤️' : ''}</Text>
+                    {r.client_id && noShowClients.has(r.client_id) && r.statut !== 'no_show' && (
+                      <Text style={{ fontSize: 10, fontWeight: '600', color: 'rgba(220, 38, 38, 0.7)', marginTop: 2 }}>
+                        ⚠️ No-show précédent — pénalité applicable
+                      </Text>
+                    )}
                     {r.client_telephone ? <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 1 }}>{r.client_telephone}</Text> : null}
                   </View>
                   <StatusBadge statut={r.statut} />
