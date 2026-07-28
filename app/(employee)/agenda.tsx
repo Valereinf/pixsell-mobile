@@ -9,6 +9,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
+import * as Updates from 'expo-updates'
 import { registerPushToken } from '../../lib/notifications'
 import { supabase } from '../../lib/supabase'
 import {
@@ -1193,6 +1194,25 @@ export default function EmployePortal() {
               </TouchableOpacity>
             </View>
           )}
+        </Card>
+
+        {/* DEBUG TEMPORAIRE — à retirer une fois le diagnostic OTA terminé */}
+        <Card>
+          <Text style={s.cardTitle}>Debug — Update OTA</Text>
+          <View style={{ gap: 6, marginTop: 8 }}>
+            <Text selectable style={{ fontSize: 12, color: '#374151' }}>
+              updateId: {Updates.updateId ?? '(null — bundle embarqué)'}
+            </Text>
+            <Text selectable style={{ fontSize: 12, color: '#374151' }}>
+              runtimeVersion: {Updates.runtimeVersion}
+            </Text>
+            <Text selectable style={{ fontSize: 12, color: '#374151' }}>
+              channel: {Updates.channel ?? '(null)'}
+            </Text>
+            <Text selectable style={{ fontSize: 12, color: '#374151' }}>
+              isEmbeddedLaunch: {String(Updates.isEmbeddedLaunch)}
+            </Text>
+          </View>
         </Card>
       </View>
     )
