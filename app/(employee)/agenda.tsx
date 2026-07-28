@@ -13,7 +13,7 @@ import { registerPushToken } from '../../lib/notifications'
 import { supabase } from '../../lib/supabase'
 import {
   loginEmploye, logoutEmploye, getMe, getDemandes, getStats,
-  getGratifications, getRdv, getNotifications,
+  getGratifications, getRdv, getSemaine, getNotifications,
   markGratifRead, markNotifRead, updateProfile, changePassword, submitDemande,
 } from '../../lib/employeAuth'
 import type { EmployeProfile } from '../../lib/employeAuth'
@@ -243,6 +243,7 @@ export default function EmployePortal() {
   const [weekDate, setWeekDate]           = useState(todayISO)
   const [weekResas, setWeekResas]         = useState<ResaToday[]>([])
   const [weekLoading, setWeekLoading]     = useState(false)
+  const [weekError, setWeekError]         = useState<string | null>(null)
   const [nowMins, setNowMins]             = useState(() => { const n = new Date(); return n.getHours() * 60 + n.getMinutes() })
   const [detailWeekRdv, setDetailWeekRdv] = useState<ResaToday | null>(null)
   const { width: screenW }                = useWindowDimensions()
@@ -386,24 +387,23 @@ export default function EmployePortal() {
 
   // ── Week view data ──────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    if (tab !== 'semaine' || !employe?.id) return
+  const loadWeek = useCallback(() => {
+    if (tab !== 'semaine' || !employe?.id || !token) return
     const dow = (new Date(weekDate + 'T12:00:00').getDay() + 6) % 7
     const weekMon = addDays(weekDate, -dow)
     const weekSun = addDays(weekMon, 6)
     setWeekLoading(true)
-    supabase
-      .from('reservations')
-      .select('id, date_rdv, heure_rdv, service, client_prenom, client_nom, statut, prix, duree_rdv, choix_direct, created_at')
-      .eq('employee_id', employe.id)
-      .gte('date_rdv', weekMon)
-      .lte('date_rdv', weekSun)
-      .order('heure_rdv')
-      .then(({ data }) => {
-        setWeekResas((data ?? []) as ResaToday[])
-        setWeekLoading(false)
+    setWeekError(null)
+    getSemaine(token, weekMon, weekSun)
+      .then(data => setWeekResas((data.reservations as ResaToday[]) ?? []))
+      .catch(err => {
+        console.error('[SemaineTab] getSemaine error:', err)
+        setWeekError(err instanceof Error ? err.message : 'Impossible de charger les rendez-vous de la semaine')
       })
-  }, [tab, employe?.id, weekDate])
+      .finally(() => setWeekLoading(false))
+  }, [tab, employe?.id, weekDate, token])
+
+  useEffect(() => { loadWeek() }, [loadWeek])
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -1379,7 +1379,15 @@ export default function EmployePortal() {
           </TouchableOpacity>
         </View>
 
-        {weekLoading ? (
+        {weekError ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 }}>
+            <Ionicons name="alert-circle-outline" size={40} color="#ef4444" />
+            <Text style={[s.errText, { fontSize: 14 }]}>{weekError}</Text>
+            <TouchableOpacity onPress={loadWeek} style={sw.todayBtn}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#7c3aed' }}>Réessayer</Text>
+            </TouchableOpacity>
+          </View>
+        ) : weekLoading ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <ActivityIndicator color="#7c3aed" />
           </View>

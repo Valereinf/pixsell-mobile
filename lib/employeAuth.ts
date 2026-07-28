@@ -46,6 +46,8 @@ export const getDemandes = (token: string) => authFetch('employe-demandes', toke
 export const getStats = (token: string) => authFetch('employe-stats', token)
 export const getGratifications = (token: string) => authFetch('employe-gratifications', token)
 export const getRdv = (token: string) => authFetch('employe-rdv', token)
+export const getSemaine = (token: string, debut: string, fin: string) =>
+  authFetch(`employe-semaine?debut=${debut}&fin=${fin}`, token)
 export const getNotifications = (token: string) => authFetch('employe-notifications', token)
 
 export const markGratifRead = (token: string) =>
