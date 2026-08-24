@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../../lib/supabase'
 import { parseDate } from '../../../lib/parseDate'
+import { logBookingDiagnostic } from '../../../lib/bookingDiagnostics'
 
 const NETLIFY_URL = 'https://app.pixsellmedia.ca'
 
@@ -270,6 +271,8 @@ function DetailModal({ row, companyId, allEmployes, onClose, onStatusChange, onU
     setEditSaving(true)
     const svc = editServices.find(s => s.id === editSvcId)
     const emp = editEmployes.find(e => e.id === editEmpId)
+    const ajustement = emp?.duree_ajustement_pct ?? 0
+    const dureeCalculee = svc ? svc.duree_minutes + ajustement : undefined
     const updates: Record<string, unknown> = {
       date_rdv: editDate,
       heure_rdv: editTime,
@@ -277,16 +280,33 @@ function DetailModal({ row, companyId, allEmployes, onClose, onStatusChange, onU
       prix: editPrix !== '' ? parseFloat(editPrix) : null,
       note_interne: editNoteInterne || null,
     }
-    if (svc) { updates.service = svc.nom; updates.duree_rdv = svc.duree_minutes }
+    if (svc) { updates.service = svc.nom; updates.duree_rdv = dureeCalculee }
     const { error } = await supabase.from('reservations').update(updates).eq('id', row.id)
     if (!error) {
+      if (svc && ajustement !== 0) {
+        await logBookingDiagnostic({
+          company_id: companyId,
+          reservation_id: row.id,
+          employe_id: editEmpId || null,
+          employee_data_found: !!emp,
+          duree_base: svc.duree_minutes,
+          duree_ajustement: ajustement,
+          duree_calculee: dureeCalculee ?? null,
+          prix_base: svc.prix ?? null,
+          prix_serveur: svc.prix ?? null,
+          prix_final_recu_client: null,
+          prix_insere: svc.prix ?? null,
+          champs_vides: [],
+          client_email: row.client_email,
+        })
+      }
       onUpdate(row.id, {
         date_rdv: editDate,
         heure_rdv: editTime,
         employee_id: editEmpId || null,
         prix: editPrix !== '' ? parseFloat(editPrix) : null,
         note_interne: editNoteInterne || null,
-        ...(svc ? { service: svc.nom, duree_rdv: svc.duree_minutes } : {}),
+        ...(svc ? { service: svc.nom, duree_rdv: dureeCalculee } : {}),
         employes: emp ? [{ nom: emp.nom }] : row.employes,
       })
       setEditing(false)
@@ -713,7 +733,12 @@ function BookingModal({ company, onClose, onCreated }: BookingModalProps) {
     return () => clearTimeout(t)
   }, [clientSearch, company.id])
 
-  const canSubmit = !!(svcId && date && heure && (clientMode === 'search' ? !!selectedClient : !!newPrenom))
+  const canSubmit = !!(
+    svcId && date && heure &&
+    (clientMode === 'search'
+      ? !!selectedClient && !!selectedClient.prenom?.trim() && !!selectedClient.nom?.trim() && !!selectedClient.email?.trim() && !!selectedClient.telephone?.trim()
+      : !!newPrenom.trim() && !!newNom.trim() && !!newEmail.trim() && !!newTel.trim())
+  )
 
   const handleSubmit = async () => {
     if (!canSubmit) return
@@ -744,6 +769,34 @@ function BookingModal({ company, onClose, onCreated }: BookingModalProps) {
       const ajustementInsert = empForInsert?.duree_ajustement_pct ?? 0
       const dureeFinale = dureeBaseInsert + ajustementInsert || 60
       const cancel_token = simpleUUID()
+
+      const champsVides = [
+        !clientData.client_prenom?.trim() && 'prenom',
+        !clientData.client_nom?.trim() && 'nom',
+        !clientData.client_email?.trim() && 'email',
+        !clientData.client_telephone?.trim() && 'telephone',
+      ].filter((v): v is string => !!v)
+      if (champsVides.length > 0) {
+        console.error('[BookingModal] ANOMALIE — champs vides juste avant insertion', { champsVides, clientMode })
+        await logBookingDiagnostic({
+          company_id: company.id,
+          employe_id: empId || null,
+          employee_data_found: !!empForInsert,
+          duree_base: dureeBaseInsert,
+          duree_ajustement: ajustementInsert,
+          duree_calculee: dureeFinale,
+          prix_base: svc?.prix ?? null,
+          prix_serveur: svc?.prix ?? null,
+          prix_final_recu_client: null,
+          prix_insere: svc?.prix ?? null,
+          champs_vides: champsVides,
+          client_email: clientData.client_email,
+        })
+        setError('Informations client incomplètes (prénom, nom, email et téléphone requis)')
+        setSaving(false)
+        return
+      }
+
       const { error: insertErr } = await supabase.from('reservations').insert({
         company_id: company.id,
         client_id:  finalClientId || null,

@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../../lib/supabase'
 import { parseDate } from '../../../lib/parseDate'
+import { logBookingDiagnostic } from '../../../lib/bookingDiagnostics'
 
 const { width: SCREEN_W } = Dimensions.get('window')
 
@@ -51,6 +52,7 @@ interface Employe {
   photo_url: string | null
   titre: string | null
   couleur_agenda: string | null
+  duree_ajustement_pct?: number | null
 }
 
 interface Svc {
@@ -162,7 +164,7 @@ export default function CalendrierScreen() {
   useEffect(() => {
     if (!company) return
     Promise.all([
-      supabase.from('employes').select('id, nom, prenom, photo_url, titre, couleur_agenda').eq('company_id', company.id).eq('actif', true).order('nom'),
+      supabase.from('employes').select('id, nom, prenom, photo_url, titre, couleur_agenda, duree_ajustement_pct').eq('company_id', company.id).eq('actif', true).order('nom'),
       supabase.from('services_catalogue').select('id, nom, prix, duree_minutes, couleur').eq('company_id', company.id).eq('actif', true).order('ordre', { ascending: true }),
     ]).then(([{ data: emps }, { data: svcs }]) => {
       const empList = (emps ?? []) as Employe[]
@@ -273,11 +275,14 @@ export default function CalendrierScreen() {
     try {
       if (editingResaId) {
         const svc = services.find(s => s.id === createSvcId)
+        const empForEdit = employes.find(e => e.id === createEmpId)
+        const ajustementEdit = empForEdit?.duree_ajustement_pct ?? 0
+        const dureeCalculeeEdit = svc ? svc.duree_minutes + ajustementEdit : undefined
         const { error } = await supabase.from('reservations').update({
           employee_id: createEmpId,
           service: svc?.nom ?? null,
           prix: svc?.prix ?? 0,
-          duree_rdv: svc?.duree_minutes ?? 30,
+          duree_rdv: dureeCalculeeEdit ?? 30,
           date_rdv: createDate,
           heure_rdv: createTime,
           client_id: selectedClient?.id ?? null,
@@ -287,6 +292,23 @@ export default function CalendrierScreen() {
           client_email: selectedClient?.email ?? newEmail ?? null,
         }).eq('id', editingResaId)
         if (error) { setCreateError(error.message); setCreating(false); return }
+        if (svc && ajustementEdit !== 0) {
+          await logBookingDiagnostic({
+            company_id: company.id,
+            reservation_id: editingResaId,
+            employe_id: createEmpId || null,
+            employee_data_found: !!empForEdit,
+            duree_base: svc.duree_minutes,
+            duree_ajustement: ajustementEdit,
+            duree_calculee: dureeCalculeeEdit ?? null,
+            prix_base: svc.prix ?? null,
+            prix_serveur: svc.prix ?? null,
+            prix_final_recu_client: null,
+            prix_insere: svc.prix ?? null,
+            champs_vides: [],
+            client_email: selectedClient?.email ?? newEmail ?? null,
+          })
+        }
         fetch(`${NETLIFY_URL}/.netlify/functions/send-confirmation`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -311,8 +333,17 @@ export default function CalendrierScreen() {
       if (selectedClient) {
         clientId = selectedClient.id; clientPrenom = selectedClient.prenom
         clientNom = selectedClient.nom; clientTel = selectedClient.telephone; clientEmail = selectedClient.email
+        if (!clientPrenom?.trim() || !clientNom?.trim() || !clientEmail?.trim() || !clientTel?.trim()) {
+          setCreateError('Le profil du client sélectionné est incomplet (prénom, nom, email, téléphone requis)')
+          setCreating(false)
+          return
+        }
       } else if (newClientMode) {
-        if (!newPrenom) { setCreateError('Prénom requis'); setCreating(false); return }
+        if (!newPrenom.trim() || !newNom.trim() || !newEmail.trim() || !newTel.trim()) {
+          setCreateError('Prénom, nom, email et téléphone sont requis pour un nouveau client')
+          setCreating(false)
+          return
+        }
         const { data: nc, error: ce } = await supabase.from('clients')
           .insert({ company_id: company.id, prenom: newPrenom, nom: newNom, email: newEmail, telephone: newTel, points_fidelite: 0, est_bloque: false })
           .select('id').single()
@@ -321,12 +352,44 @@ export default function CalendrierScreen() {
       }
 
       const svc = services.find(s => s.id === createSvcId)
+      const empForInsert = employes.find(e => e.id === createEmpId)
+      const dureeBaseInsert = svc?.duree_minutes ?? 30
+      const ajustementInsert = empForInsert?.duree_ajustement_pct ?? 0
+      const dureeFinale = dureeBaseInsert + ajustementInsert
+
+      const champsVides = [
+        !clientPrenom?.trim() && 'prenom',
+        !clientNom?.trim() && 'nom',
+        !clientEmail?.trim() && 'email',
+        !clientTel?.trim() && 'telephone',
+      ].filter((v): v is string => !!v)
+      if (champsVides.length > 0) {
+        console.error('[calendrier] ANOMALIE — champs vides juste avant insertion', { champsVides })
+        await logBookingDiagnostic({
+          company_id: company.id,
+          employe_id: createEmpId || null,
+          employee_data_found: !!empForInsert,
+          duree_base: dureeBaseInsert,
+          duree_ajustement: ajustementInsert,
+          duree_calculee: dureeFinale,
+          prix_base: svc?.prix ?? null,
+          prix_serveur: svc?.prix ?? null,
+          prix_final_recu_client: null,
+          prix_insere: svc?.prix ?? null,
+          champs_vides: champsVides,
+          client_email: clientEmail,
+        })
+        setCreateError('Informations client incomplètes (prénom, nom, email et téléphone requis)')
+        setCreating(false)
+        return
+      }
+
       const { error } = await supabase.from('reservations').insert({
         company_id: company.id, employee_id: createEmpId,
         client_id: clientId, client_prenom: clientPrenom, client_nom: clientNom,
         client_telephone: clientTel, client_email: clientEmail,
         service: svc?.nom ?? null, prix: svc?.prix ?? 0,
-        duree_rdv: svc?.duree_minutes ?? 30,
+        duree_rdv: dureeFinale,
         date_rdv: createDate, heure_rdv: createTime, statut: 'confirmed',
       })
       if (error) { setCreateError(error.message); setCreating(false); return }
