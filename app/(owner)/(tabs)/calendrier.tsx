@@ -140,6 +140,11 @@ export default function CalendrierScreen() {
   const [newNom, setNewNom] = useState('')
   const [newTel, setNewTel] = useState('')
   const [newEmail, setNewEmail] = useState('')
+  // Valeurs client de la reservation AVANT edition — sert uniquement au
+  // filet de securite qui bloque la sauvegarde si elles seraient effacees.
+  const [editOriginalClient, setEditOriginalClient] = useState<{
+    prenom: string | null; nom: string | null; email: string | null; telephone: string | null
+  } | null>(null)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
 
@@ -244,6 +249,7 @@ export default function CalendrierScreen() {
     setClientSearch('')
     setCreateSvcId(services[0]?.id ?? '')
     setCreateError('')
+    setEditOriginalClient(null)
     setNewPrenom(''); setNewNom(''); setNewTel(''); setNewEmail('')
     setCreateModal(true)
   }
@@ -280,6 +286,9 @@ export default function CalendrierScreen() {
     }
     setCreateError('')
     setMessageClient('')
+    setEditOriginalClient({
+      prenom: r.client_prenom, nom: r.client_nom, email: r.client_email, telephone: r.client_telephone,
+    })
     setEditingResaId(r.id)
     setDetailResa(null)
     setCreateModal(true)
@@ -294,6 +303,40 @@ export default function CalendrierScreen() {
         const empForEdit = employes.find(e => e.id === createEmpId)
         const ajustementEdit = empForEdit?.duree_ajustement_pct ?? 0
         const dureeCalculeeEdit = svc ? svc.duree_minutes + ajustementEdit : undefined
+
+        const resolvedPrenom = selectedClient?.prenom ?? newPrenom ?? null
+        const resolvedNom = selectedClient?.nom ?? newNom ?? null
+        const resolvedTel = selectedClient?.telephone ?? newTel ?? null
+        const resolvedEmail = selectedClient?.email ?? newEmail ?? null
+
+        const resolvedAllBlank = !resolvedPrenom?.trim() && !resolvedNom?.trim() && !resolvedTel?.trim() && !resolvedEmail?.trim()
+        const originalHadData = !!(
+          editOriginalClient?.prenom?.trim() || editOriginalClient?.nom?.trim() ||
+          editOriginalClient?.email?.trim() || editOriginalClient?.telephone?.trim()
+        )
+
+        if (resolvedAllBlank && originalHadData) {
+          console.error('[calendrier] ANOMALIE — sauvegarde bloquée : le client existant serait effacé', { editingResaId })
+          await logBookingDiagnostic({
+            company_id: company.id,
+            reservation_id: editingResaId,
+            employe_id: createEmpId || null,
+            employee_data_found: !!empForEdit,
+            duree_base: svc?.duree_minutes ?? null,
+            duree_ajustement: ajustementEdit,
+            duree_calculee: dureeCalculeeEdit ?? null,
+            prix_base: svc?.prix ?? null,
+            prix_serveur: svc?.prix ?? null,
+            prix_final_recu_client: null,
+            prix_insere: svc?.prix ?? null,
+            champs_vides: ['prenom', 'nom', 'email', 'telephone'],
+            client_email: editOriginalClient?.email ?? null,
+          })
+          setCreateError('Impossible de sauvegarder : les informations du client existant seraient effacées. Sélectionnez le client ou remplissez ses coordonnées.')
+          setCreating(false)
+          return
+        }
+
         const { error } = await supabase.from('reservations').update({
           employee_id: createEmpId,
           service: svc?.nom ?? null,
@@ -302,10 +345,10 @@ export default function CalendrierScreen() {
           date_rdv: createDate,
           heure_rdv: createTime,
           client_id: selectedClient?.id ?? null,
-          client_prenom: selectedClient?.prenom ?? newPrenom ?? null,
-          client_nom: selectedClient?.nom ?? newNom ?? null,
-          client_telephone: selectedClient?.telephone ?? newTel ?? null,
-          client_email: selectedClient?.email ?? newEmail ?? null,
+          client_prenom: resolvedPrenom,
+          client_nom: resolvedNom,
+          client_telephone: resolvedTel,
+          client_email: resolvedEmail,
         }).eq('id', editingResaId)
         if (error) { setCreateError(error.message); setCreating(false); return }
         if (svc && ajustementEdit !== 0) {
@@ -322,7 +365,7 @@ export default function CalendrierScreen() {
             prix_final_recu_client: null,
             prix_insere: svc.prix ?? null,
             champs_vides: [],
-            client_email: selectedClient?.email ?? newEmail ?? null,
+            client_email: resolvedEmail,
           })
         }
         fetch(`${NETLIFY_URL}/.netlify/functions/send-confirmation`, {
