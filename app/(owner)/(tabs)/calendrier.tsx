@@ -254,14 +254,30 @@ export default function CalendrierScreen() {
     setCreateTime(r.heure_rdv?.slice(0, 5) ?? '09:00')
     const svc = services.find(s => s.nom === r.service)
     setCreateSvcId(svc?.id ?? services[0]?.id ?? '')
-    setSelectedClient(r.client_id ? {
-      id: r.client_id,
-      prenom: r.client_prenom ?? '',
-      nom: r.client_nom ?? '',
-      email: r.client_email ?? '',
-      telephone: r.client_telephone ?? '',
-    } : null)
-    setNewClientMode(false)
+    if (r.client_id) {
+      setSelectedClient({
+        id: r.client_id,
+        prenom: r.client_prenom ?? '',
+        nom: r.client_nom ?? '',
+        email: r.client_email ?? '',
+        telephone: r.client_telephone ?? '',
+      })
+      setNewClientMode(false)
+      setNewPrenom(''); setNewNom(''); setNewTel(''); setNewEmail('')
+    } else {
+      // Client "invité" jamais rattaché a un profil (client_id null) : les
+      // champs newPrenom/newNom/newTel/newEmail ne sont pas re-initialises
+      // par ailleurs, donc sans ce pre-remplissage ils restent a leur
+      // valeur precedente (souvent '') et handleCreate ecrase silencieusement
+      // client_prenom/nom/email/telephone existants par des chaines vides
+      // au save (selectedClient?.prenom ?? newPrenom ?? null → '').
+      setSelectedClient(null)
+      setNewPrenom(r.client_prenom ?? '')
+      setNewNom(r.client_nom ?? '')
+      setNewTel(r.client_telephone ?? '')
+      setNewEmail(r.client_email ?? '')
+      setNewClientMode(true)
+    }
     setCreateError('')
     setMessageClient('')
     setEditingResaId(r.id)
