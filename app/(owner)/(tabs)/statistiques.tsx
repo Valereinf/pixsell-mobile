@@ -4,20 +4,47 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { supabase } from '../../../lib/supabase'
-import type { Company } from '../../../lib/types'
 import { useOwnerContext } from '../../../lib/ownerContext'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 type Period = 'mois' | '3mois' | 'annee' | 'tout'
-
-interface Rdv {
-  id: string; date_rdv: string; heure_rdv: string | null
-  service: string | null; prix: number | null; statut: string
-  employee_id: string | null; client_email: string | null
-}
+type BucketMode = 'day' | 'week' | 'month'
 
 interface EmpRow { id: string; nom: string; titre: string | null }
+
+// Forme du JSONB retourne par get_dashboard_statistiques (meme RPC que le
+// dashboard web, voir C:\PixsellSaaS\supabase\migrations\088-090). Seuls les
+// champs utilises par cet ecran sont types ici.
+interface StatsKpis {
+  completed_count: number
+  total_rev: number
+  noshow_count: number
+  filtered_count: number
+  unique_clients: number
+}
+interface StatsLoyalty {
+  regular_2plus: number
+  loyal_3plus: number
+  single_visit: number
+  occasional_2: number
+  inactive_60d: number
+}
+interface ByEmployee { employee_id: string; cnt: number; rev: number }
+interface ByHour { hour: string; cnt: number }
+interface ByDow { dow: number; cnt: number }
+interface TopService { service: string; cnt: number }
+interface Month12 { month: string; cnt: number; rev: number }
+
+interface StatsResult {
+  kpis: StatsKpis
+  loyalty: StatsLoyalty
+  by_employee: ByEmployee[]
+  by_hour: ByHour[]
+  by_dow: ByDow[]
+  top_services: TopService[]
+  months12: Month12[]
+}
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -28,9 +55,6 @@ const PERIOD_OPTIONS: { id: Period; label: string }[] = [
   { id: 'tout',   label: 'Tout' },
 ]
 
-const CANCELLED = ['cancelled', 'annule', 'annulee']
-const COMPLETED  = ['completed', 'confirme', 'confirmee', 'terminee']
-const NOSHOWS    = ['absent', 'no_show']
 const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -55,6 +79,12 @@ function getPeriodStart(p: Period, tz: string): string | null {
     return `${year}-01-01`
 
   return null
+}
+
+function getBucketMode(p: Period): BucketMode {
+  if (p === 'mois') return 'day'
+  if (p === '3mois') return 'week'
+  return 'month'
 }
 
 function fmt(n: number): string { return n.toFixed(2) }
@@ -99,106 +129,100 @@ function KpiCard({ label, value, color }: { label: string; value: string; color:
 
 export default function StatistiquesScreen() {
   const { company } = useOwnerContext()
-  const [rdvs, setRdvs]         = useState<Rdv[]>([])
+  const [stats, setStats]       = useState<StatsResult | null>(null)
   const [employes, setEmployes] = useState<EmpRow[]>([])
   const [loading, setLoading]   = useState(true)
   const [period, setPeriod]     = useState<Period>('mois')
-
-  useEffect(() => { if (company) load() }, [company?.id])
-
-  async function load() {
-    setLoading(true)
-    const [rdvRes, empRes] = await Promise.all([
-      supabase.from('reservations')
-        .select('id,date_rdv,heure_rdv,service,prix,statut,employee_id,client_email')
-        .eq('company_id', company!.id),
-      supabase.from('employes').select('id,nom,titre').eq('company_id', company!.id).eq('actif', true),
-    ])
-    setRdvs((rdvRes.data ?? []) as Rdv[])
-    setEmployes((empRes.data ?? []) as EmpRow[])
-    setLoading(false)
-  }
-
-  // ── Filtered data ──────────────────────────────────────────────────────
 
   const today = new Intl.DateTimeFormat('en-CA', {
     timeZone: company?.timezone ?? 'America/Toronto',
     year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(new Date())
 
-  const filtered = useMemo(() => {
-    const start = getPeriodStart(period, company?.timezone ?? 'America/Toronto')
-    const base = start ? rdvs.filter(r => r.date_rdv >= start) : rdvs
-    return base.filter(r => r.date_rdv <= today)
-  }, [rdvs, period, today])
+  const twelveAgo = useMemo(() => {
+    const d = new Date(); d.setMonth(d.getMonth() - 11)
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
+  }, [])
 
-  const completed  = useMemo(() => filtered.filter(r => COMPLETED.includes(r.statut)), [filtered])
-  const cancelled  = useMemo(() => filtered.filter(r => CANCELLED.includes(r.statut)), [filtered])
-  const noshows    = useMemo(() => filtered.filter(r => NOSHOWS.includes(r.statut)), [filtered])
-  const revenues   = useMemo(() => completed.reduce((s, r) => s + Number(r.prix ?? 0), 0), [completed])
+  // Employes (liste bornee, independante de la periode) ──────────────────
+  useEffect(() => {
+    if (!company) return
+    supabase.from('employes').select('id,nom,titre').eq('company_id', company.id).eq('actif', true)
+      .then(({ data }) => setEmployes((data ?? []) as EmpRow[]))
+  }, [company?.id])
 
-  const uniqueClients = useMemo(() => new Set(completed.map(r => r.client_email).filter(Boolean)).size, [completed])
-  const clientVisits  = useMemo(() => {
-    const map: Record<string, number> = {}
-    completed.forEach(r => { if (r.client_email) map[r.client_email] = (map[r.client_email] ?? 0) + 1 })
-    return map
-  }, [completed])
-  const reguliers = useMemo(() => Object.values(clientVisits).filter(v => v >= 3).length, [clientVisits])
-  const inactifs  = useMemo(() => {
-    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 60)
-    const cutoffStr = cutoff.toLocaleDateString('en-CA')
-    const lastVisit: Record<string, string> = {}
-    completed.forEach(r => { if (r.client_email && r.date_rdv > (lastVisit[r.client_email] ?? '')) lastVisit[r.client_email] = r.date_rdv })
-    return Object.values(lastVisit).filter(d => d < cutoffStr).length
-  }, [completed])
+  // Stats agregees cote serveur — meme RPC que le dashboard web, remplace
+  // le fetch complet de `reservations` qui plafonnait a 1000 lignes ──────
+  useEffect(() => {
+    if (!company) return
+    setLoading(true)
+    const periodStart = getPeriodStart(period, company.timezone ?? 'America/Toronto')
+    supabase.rpc('get_dashboard_statistiques', {
+      p_company_id: company.id,
+      p_period_start: periodStart,
+      p_today: today,
+      p_bucket_mode: getBucketMode(period),
+      p_twelve_ago: twelveAgo,
+    }).then(({ data, error }) => {
+      if (error) {
+        console.error('[statistiques] RPC get_dashboard_statistiques a échoué:', error.message)
+        setStats(null)
+      } else {
+        setStats(data as StatsResult)
+      }
+      setLoading(false)
+    })
+  }, [company?.id, period, today])
+
+  // ── Derived data (issue du JSON du RPC, plus de calcul cote client) ────
+
+  const kpis          = stats?.kpis
+  const loyalty       = stats?.loyalty
+  const completedCount = kpis?.completed_count ?? 0
+  const noshowCount    = kpis?.noshow_count ?? 0
+  const filteredCount  = kpis?.filtered_count ?? 0
+  const revenues       = kpis?.total_rev ?? 0
+  const uniqueClients  = kpis?.unique_clients ?? 0
+  const reguliers      = loyalty?.loyal_3plus ?? 0
+  const inactifs       = loyalty?.inactive_60d ?? 0
 
   // Barres par employé
-  const empStats = useMemo(() => {
-    const map: Record<string, { nom: string; count: number; rev: number }> = {}
-    completed.forEach(r => {
-      if (!r.employee_id) return
-      const emp = employes.find(e => e.id === r.employee_id)
-      if (!emp) return
-      if (!map[r.employee_id]) map[r.employee_id] = { nom: emp.nom, count: 0, rev: 0 }
-      map[r.employee_id].count++
-      map[r.employee_id].rev += Number(r.prix ?? 0)
+  const empStats = useMemo(() => (stats?.by_employee ?? [])
+    .map(e => {
+      const emp = employes.find(x => x.id === e.employee_id)
+      return emp ? { nom: emp.nom, count: e.cnt, rev: e.rev } : null
     })
-    return Object.values(map).sort((a, b) => b.rev - a.rev)
-  }, [completed, employes])
+    .filter((e): e is { nom: string; count: number; rev: number } => !!e)
+    .sort((a, b) => b.rev - a.rev), [stats, employes])
 
   // Heures
   const heureStats = useMemo(() => {
     const arr = Array.from({ length: 24 }, (_, i) => ({ label: `${i}h`, value: 0 }))
-    completed.forEach(r => { if (r.heure_rdv) arr[parseInt(r.heure_rdv.slice(0, 2))].value++ })
+    for (const h of stats?.by_hour ?? []) {
+      const i = parseInt(h.hour, 10)
+      if (i >= 0 && i < 24) arr[i].value = h.cnt
+    }
     return arr.filter(h => h.value > 0).sort((a, b) => b.value - a.value).slice(0, 8)
-  }, [completed])
+  }, [stats])
 
   // Jours de la semaine
   const jourStats = useMemo(() => {
     const arr = [0, 0, 0, 0, 0, 0, 0]
-    completed.forEach(r => { const d = new Date(r.date_rdv + 'T12:00:00'); const dow = d.getDay(); arr[dow === 0 ? 6 : dow - 1]++ })
+    for (const d of stats?.by_dow ?? []) arr[d.dow === 0 ? 6 : d.dow - 1] = d.cnt
     return DAY_LABELS.map((label, i) => ({ label, value: arr[i] }))
-  }, [completed])
+  }, [stats])
 
   // Services populaires
-  const svcStats = useMemo(() => {
-    const map: Record<string, number> = {}
-    completed.forEach(r => { if (r.service) map[r.service] = (map[r.service] ?? 0) + 1 })
-    return Object.entries(map).map(([nom, count]) => ({ nom, count })).sort((a, b) => b.count - a.count).slice(0, 8)
-  }, [completed])
+  const svcStats = useMemo(() =>
+    (stats?.top_services ?? []).map(s => ({ nom: s.service, count: s.cnt })), [stats])
 
   // 12 derniers mois
   const months = useMemo(() => last12Months(), [])
   const monthData = useMemo(() => {
-    const rdvByM: Record<string, number> = {}
-    const revByM: Record<string, number> = {}
-    completed.forEach(r => {
-      const ym = r.date_rdv.slice(0, 7)
-      rdvByM[ym] = (rdvByM[ym] ?? 0) + 1
-      revByM[ym] = (revByM[ym] ?? 0) + Number(r.prix ?? 0)
-    })
-    return months.map(m => ({ ...m, rdv: rdvByM[m.ym] ?? 0, rev: revByM[m.ym] ?? 0 }))
-  }, [completed, months])
+    const map: Record<string, { cnt: number; rev: number }> = {}
+    for (const m of stats?.months12 ?? []) map[m.month] = { cnt: m.cnt, rev: m.rev }
+    return months.map(m => ({ ...m, rdv: map[m.ym]?.cnt ?? 0, rev: map[m.ym]?.rev ?? 0 }))
+  }, [stats, months])
 
   const maxRdv = Math.max(1, ...monthData.map(m => m.rdv))
   const maxRev = Math.max(1, ...monthData.map(m => m.rev))
@@ -231,10 +255,10 @@ export default function StatistiquesScreen() {
           <>
             {/* KPIs */}
             <View style={s.kpiGrid}>
-              <KpiCard label="RDV confirmés" value={`${completed.length}`}  color="#7c3aed" />
+              <KpiCard label="RDV confirmés" value={`${completedCount}`}   color="#7c3aed" />
               <KpiCard label="Revenus"       value={`${fmt(revenues)} $`}   color="#059669" />
               <KpiCard label="Clients"       value={`${uniqueClients}`}     color="#2563eb" />
-              <KpiCard label="No-shows"      value={`${noshows.length}`}    color="#dc2626" />
+              <KpiCard label="No-shows"      value={`${noshowCount}`}       color="#dc2626" />
               <KpiCard label="Réguliers 3+"  value={`${reguliers}`}         color="#d97706" />
               <KpiCard label="Inactifs 60j"  value={`${inactifs}`}          color="#6b7280" />
             </View>
@@ -313,13 +337,11 @@ export default function StatistiquesScreen() {
             <View style={s.section}>
               <Text style={s.sectionTitle}>Résumé de la période</Text>
               {[
-                ['RDV total',          `${filtered.length}`],
-                ['RDV complétés',       `${completed.length}`],
-                ['RDV annulés',         `${cancelled.length}`],
-                ['No-shows',            `${noshows.length}`],
-                ['Taux annulation',     filtered.length > 0 ? `${((cancelled.length / filtered.length) * 100).toFixed(1)} %` : '—'],
+                ['RDV total',          `${filteredCount}`],
+                ['RDV complétés',       `${completedCount}`],
+                ['No-shows',            `${noshowCount}`],
                 ['Revenus totaux',      `${fmt(revenues)} $`],
-                ['Revenu moyen / RDV',  completed.length > 0 ? `${fmt(revenues / completed.length)} $` : '—'],
+                ['Revenu moyen / RDV',  completedCount > 0 ? `${fmt(revenues / completedCount)} $` : '—'],
                 ['Clients uniques',     `${uniqueClients}`],
               ].map(([label, value]) => (
                 <View key={label} style={s.tableRow}>
