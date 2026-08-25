@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../../lib/supabase'
 import { parseDate } from '../../../lib/parseDate'
 import { logBookingDiagnostic } from '../../../lib/bookingDiagnostics'
+import { prixAvecMajoration } from '../../../lib/prixMajore'
 
 const { width: SCREEN_W } = Dimensions.get('window')
 
@@ -53,6 +54,10 @@ interface Employe {
   titre: string | null
   couleur_agenda: string | null
   duree_ajustement_pct?: number | null
+  majoration_active?: boolean | null
+  majoration_sens?: string | null
+  majoration_type?: string | null
+  majoration_valeur?: number | null
 }
 
 interface Svc {
@@ -169,7 +174,7 @@ export default function CalendrierScreen() {
   useEffect(() => {
     if (!company) return
     Promise.all([
-      supabase.from('employes').select('id, nom, prenom, photo_url, titre, couleur_agenda, duree_ajustement_pct').eq('company_id', company.id).eq('actif', true).order('nom'),
+      supabase.from('employes').select('id, nom, prenom, photo_url, titre, couleur_agenda, duree_ajustement_pct, majoration_active, majoration_sens, majoration_type, majoration_valeur').eq('company_id', company.id).eq('actif', true).order('nom'),
       supabase.from('services_catalogue').select('id, nom, prix, duree_minutes, couleur').eq('company_id', company.id).eq('actif', true).order('ordre', { ascending: true }),
     ]).then(([{ data: emps }, { data: svcs }]) => {
       const empList = (emps ?? []) as Employe[]
@@ -303,6 +308,8 @@ export default function CalendrierScreen() {
         const empForEdit = employes.find(e => e.id === createEmpId)
         const ajustementEdit = empForEdit?.duree_ajustement_pct ?? 0
         const dureeCalculeeEdit = svc ? svc.duree_minutes + ajustementEdit : undefined
+        const prixBaseEdit = svc?.prix ?? 0
+        const prixFinalEdit = prixAvecMajoration(prixBaseEdit, empForEdit)
 
         const resolvedPrenom = selectedClient?.prenom ?? newPrenom ?? null
         const resolvedNom = selectedClient?.nom ?? newNom ?? null
@@ -325,10 +332,10 @@ export default function CalendrierScreen() {
             duree_base: svc?.duree_minutes ?? null,
             duree_ajustement: ajustementEdit,
             duree_calculee: dureeCalculeeEdit ?? null,
-            prix_base: svc?.prix ?? null,
-            prix_serveur: svc?.prix ?? null,
+            prix_base: svc ? prixBaseEdit : null,
+            prix_serveur: svc ? prixFinalEdit : null,
             prix_final_recu_client: null,
-            prix_insere: svc?.prix ?? null,
+            prix_insere: null,
             champs_vides: ['prenom', 'nom', 'email', 'telephone'],
             client_email: editOriginalClient?.email ?? null,
           })
@@ -340,7 +347,7 @@ export default function CalendrierScreen() {
         const { error } = await supabase.from('reservations').update({
           employee_id: createEmpId,
           service: svc?.nom ?? null,
-          prix: svc?.prix ?? 0,
+          prix: prixFinalEdit,
           duree_rdv: dureeCalculeeEdit ?? 30,
           date_rdv: createDate,
           heure_rdv: createTime,
@@ -361,9 +368,9 @@ export default function CalendrierScreen() {
             duree_ajustement: ajustementEdit,
             duree_calculee: dureeCalculeeEdit ?? null,
             prix_base: svc.prix ?? null,
-            prix_serveur: svc.prix ?? null,
+            prix_serveur: prixFinalEdit,
             prix_final_recu_client: null,
-            prix_insere: svc.prix ?? null,
+            prix_insere: prixFinalEdit,
             champs_vides: [],
             client_email: resolvedEmail,
           })
@@ -415,6 +422,8 @@ export default function CalendrierScreen() {
       const dureeBaseInsert = svc?.duree_minutes ?? 30
       const ajustementInsert = empForInsert?.duree_ajustement_pct ?? 0
       const dureeFinale = dureeBaseInsert + ajustementInsert
+      const prixBaseInsert = svc?.prix ?? 0
+      const prixFinalInsert = prixAvecMajoration(prixBaseInsert, empForInsert)
 
       const champsVides = [
         !clientPrenom?.trim() && 'prenom',
@@ -431,10 +440,10 @@ export default function CalendrierScreen() {
           duree_base: dureeBaseInsert,
           duree_ajustement: ajustementInsert,
           duree_calculee: dureeFinale,
-          prix_base: svc?.prix ?? null,
-          prix_serveur: svc?.prix ?? null,
+          prix_base: svc ? prixBaseInsert : null,
+          prix_serveur: svc ? prixFinalInsert : null,
           prix_final_recu_client: null,
-          prix_insere: svc?.prix ?? null,
+          prix_insere: null,
           champs_vides: champsVides,
           client_email: clientEmail,
         })
@@ -447,7 +456,7 @@ export default function CalendrierScreen() {
         company_id: company.id, employee_id: createEmpId,
         client_id: clientId, client_prenom: clientPrenom, client_nom: clientNom,
         client_telephone: clientTel, client_email: clientEmail,
-        service: svc?.nom ?? null, prix: svc?.prix ?? 0,
+        service: svc?.nom ?? null, prix: prixFinalInsert,
         duree_rdv: dureeFinale,
         date_rdv: createDate, heure_rdv: createTime, statut: 'confirmed',
       })

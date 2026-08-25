@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../../lib/supabase'
 import { parseDate } from '../../../lib/parseDate'
 import { logBookingDiagnostic } from '../../../lib/bookingDiagnostics'
+import { prixAvecMajoration } from '../../../lib/prixMajore'
 
 const NETLIFY_URL = 'https://app.pixsellmedia.ca'
 
@@ -61,6 +62,10 @@ interface EmployeRow {
   nom: string
   prenom?: string | null
   duree_ajustement_pct?: number | null
+  majoration_active?: boolean | null
+  majoration_sens?: string | null
+  majoration_type?: string | null
+  majoration_valeur?: number | null
 }
 
 type HoraireDay = { ouvert: boolean; debut: string; fin: string }
@@ -664,7 +669,7 @@ function BookingModal({ company, onClose, onCreated }: BookingModalProps) {
   useEffect(() => {
     Promise.all([
       supabase.from('services').select('id, nom, prix, duree_minutes').eq('company_id', company.id).eq('actif', true).order('nom'),
-      supabase.from('employes').select('id, nom, duree_ajustement_pct').eq('company_id', company.id).eq('actif', true).order('nom'),
+      supabase.from('employes').select('id, nom, duree_ajustement_pct, majoration_active, majoration_sens, majoration_type, majoration_valeur').eq('company_id', company.id).eq('actif', true).order('nom'),
     ]).then(([{ data: s }, { data: e }]) => {
       setServices((s ?? []) as ServiceRow[])
       setEmployes((e ?? []) as EmployeRow[])
@@ -769,6 +774,8 @@ function BookingModal({ company, onClose, onCreated }: BookingModalProps) {
       const ajustementInsert = empForInsert?.duree_ajustement_pct ?? 0
       const dureeFinale = dureeBaseInsert + ajustementInsert || 60
       const cancel_token = simpleUUID()
+      const prixBase = svc?.prix ?? 0
+      const prixFinal = prixAvecMajoration(prixBase, empForInsert)
 
       const champsVides = [
         !clientData.client_prenom?.trim() && 'prenom',
@@ -785,10 +792,10 @@ function BookingModal({ company, onClose, onCreated }: BookingModalProps) {
           duree_base: dureeBaseInsert,
           duree_ajustement: ajustementInsert,
           duree_calculee: dureeFinale,
-          prix_base: svc?.prix ?? null,
-          prix_serveur: svc?.prix ?? null,
+          prix_base: prixBase,
+          prix_serveur: prixFinal,
           prix_final_recu_client: null,
-          prix_insere: svc?.prix ?? null,
+          prix_insere: null,
           champs_vides: champsVides,
           client_email: clientData.client_email,
         })
@@ -804,7 +811,7 @@ function BookingModal({ company, onClose, onCreated }: BookingModalProps) {
         employee_id: empId || null,
         date_rdv:   date,
         heure_rdv:  heure,
-        prix:       svc?.prix ?? 0,
+        prix:       prixFinal,
         duree_rdv:  dureeFinale,
         statut:     'confirmed',
         cancel_token,
