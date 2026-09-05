@@ -117,6 +117,29 @@ const fmtDate = (iso: string) =>
 const empColor = (emp: Employe | undefined, idx: number) =>
   emp?.couleur_agenda || EMP_COLORS[idx % EMP_COLORS.length]
 
+// Un avertissement "no-show précédent" s'affiche sur un RDV SEULEMENT s'il est
+// le tout prochain RDV de ce client après un no-show (peu importe l'employé) —
+// c'est-à-dire si le RDV immédiatement précédent de ce même client, dans
+// l'ordre chronologique (date_rdv + heure_rdv), est un no_show. Disparaît dès
+// le RDV suivant (n+2) ; cascade naturellement si n+1 est lui-même un nouveau
+// no-show (n+1 ET n+2 affichent alors l'avertissement).
+function computeNoShowWarnings(rows: { id: string; client_id: string | null; statut: string; date_rdv: string; heure_rdv: string }[]): Set<string> {
+  const byClient = new Map<string, typeof rows>()
+  for (const r of rows) {
+    if (!r.client_id) continue
+    if (!byClient.has(r.client_id)) byClient.set(r.client_id, [])
+    byClient.get(r.client_id)!.push(r)
+  }
+  const warnings = new Set<string>()
+  for (const clientRows of byClient.values()) {
+    clientRows.sort((a, b) => a.date_rdv === b.date_rdv ? a.heure_rdv.localeCompare(b.heure_rdv) : a.date_rdv.localeCompare(b.date_rdv))
+    for (let i = 1; i < clientRows.length; i++) {
+      if (clientRows[i - 1].statut === 'no_show') warnings.add(clientRows[i].id)
+    }
+  }
+  return warnings
+}
+
 // ── Main component ───────────────────────────────────────────────
 export default function CalendrierScreen() {
   const [company, setCompany] = useState<{ id: string; couleur_service_enabled?: boolean | null } | null>(null)
@@ -129,6 +152,7 @@ export default function CalendrierScreen() {
   const [visibleEmpIds, setVisibleEmpIds] = useState<Set<string>>(new Set())
   const [weekEmpId, setWeekEmpId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [noShowWarnings, setNoShowWarnings] = useState<Set<string>>(new Set())
   const [nowMins, setNowMins] = useState(() => { const n = new Date(); return n.getHours() * 60 + n.getMinutes() })
 
   // Create modal
@@ -207,6 +231,28 @@ export default function CalendrierScreen() {
     setResas((resaData ?? []) as Resa[])
     setAbsences((absData ?? []) as RawAbsence[])
     setLoading(false)
+
+    // La grille (resaData) est bornée au jour/à la semaine affichée — pour
+    // calculer correctement la cascade no-show il faut l'historique complet
+    // des clients concernés. Requête en 2 temps : (1) quels clients ont déjà
+    // eu un no-show, (2) tout leur historique.
+    const { data: noShowClientIds } = await supabase
+      .from('reservations')
+      .select('client_id')
+      .eq('company_id', company.id)
+      .eq('statut', 'no_show')
+      .not('client_id', 'is', null)
+    const uniqueIds = [...new Set((noShowClientIds ?? []).map(row => row.client_id as string))]
+    if (uniqueIds.length > 0) {
+      const { data: fullHistory } = await supabase
+        .from('reservations')
+        .select('id, client_id, statut, date_rdv, heure_rdv')
+        .eq('company_id', company.id)
+        .in('client_id', uniqueIds)
+      setNoShowWarnings(computeNoShowWarnings(fullHistory ?? []))
+    } else {
+      setNoShowWarnings(new Set())
+    }
   }, [company?.id, selectedDate, viewMode])
 
   useEffect(() => { loadResas() }, [loadResas])
@@ -534,6 +580,11 @@ export default function CalendrierScreen() {
               <Text style={{ fontSize: 11, fontWeight: '700', color: '#111827' }} numberOfLines={1}>
                 {[r.client_prenom, r.client_nom].filter(Boolean).join(' ') || '—'}{r.choix_direct ? ' ❤️' : ''}
               </Text>
+              {noShowWarnings.has(r.id) && (
+                <Text style={{ fontSize: 9, fontWeight: '600', color: 'rgba(220, 38, 38, 0.7)' }} numberOfLines={1}>
+                  ⚠️ No-show précédent
+                </Text>
+              )}
               {h > 36 && <Text style={{ fontSize: 10, color: '#6b7280' }} numberOfLines={1}>{r.service}</Text>}
               {h > 52 && <Text style={{ fontSize: 10, color: '#9ca3af' }}>{r.heure_rdv?.slice(0, 5)}</Text>}
               {h > 68 && r.created_at && <Text style={{ fontSize: 9, color: '#9ca3af' }} numberOfLines={1}>📅 {new Date(r.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</Text>}

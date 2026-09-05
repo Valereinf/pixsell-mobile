@@ -83,6 +83,29 @@ function isInNoShowWindow(dateRdv: string, heureRdv: string, dureeMinutes: numbe
   return now >= rdvDate && now <= fenetreNoShow
 }
 
+// Un avertissement "no-show précédent" s'affiche sur un RDV SEULEMENT s'il est
+// le tout prochain RDV de ce client après un no-show (peu importe l'employé) —
+// c'est-à-dire si le RDV immédiatement précédent de ce même client, dans
+// l'ordre chronologique (date_rdv + heure_rdv), est un no_show. Disparaît dès
+// le RDV suivant (n+2) ; cascade naturellement si n+1 est lui-même un nouveau
+// no-show (n+1 ET n+2 affichent alors l'avertissement).
+function computeNoShowWarnings(rows: { id: string; client_id: string | null; statut: string; date_rdv: string; heure_rdv: string }[]): Set<string> {
+  const byClient = new Map<string, typeof rows>()
+  for (const r of rows) {
+    if (!r.client_id) continue
+    if (!byClient.has(r.client_id)) byClient.set(r.client_id, [])
+    byClient.get(r.client_id)!.push(r)
+  }
+  const warnings = new Set<string>()
+  for (const clientRows of byClient.values()) {
+    clientRows.sort((a, b) => a.date_rdv === b.date_rdv ? a.heure_rdv.localeCompare(b.heure_rdv) : a.date_rdv.localeCompare(b.date_rdv))
+    for (let i = 1; i < clientRows.length; i++) {
+      if (clientRows[i - 1].statut === 'no_show') warnings.add(clientRows[i].id)
+    }
+  }
+  return warnings
+}
+
 // ── Constants ────────────────────────────────────────────────────
 const STATUS: Record<Statut, { label: string; bg: string; color: string }> = {
   pending:   { label: 'Confirmé',   bg: 'rgba(16,185,129,0.15)',  color: '#059669' },
@@ -1035,7 +1058,7 @@ export default function ReservationsScreen() {
   const [cancelReason, setCancelReason]   = useState('')
   const [noShowTarget, setNoShowTarget]   = useState<ReservationRow | null>(null)
   const [toast, setToast]                 = useState<string | null>(null)
-  const [noShowClients, setNoShowClients] = useState<Set<string>>(new Set())
+  const [noShowWarnings, setNoShowWarnings] = useState<Set<string>>(new Set())
 
   // ── Load company ───────────────────────────────────────────────
   useEffect(() => {
@@ -1063,16 +1086,7 @@ export default function ReservationsScreen() {
     setAllEmployes((empData ?? []) as EmployeRow[])
     setAllServices((svcData ?? []) as ServiceRow[])
     setLoading(false)
-
-    const { data: noShowData } = await supabase
-      .from('reservations')
-      .select('client_id')
-      .eq('company_id', company.id)
-      .eq('statut', 'no_show')
-      .not('client_id', 'is', null)
-    if (noShowData) {
-      setNoShowClients(new Set(noShowData.map(r => r.client_id as string)))
-    }
+    setNoShowWarnings(computeNoShowWarnings((data ?? []) as ReservationRow[]))
   }, [company?.id])
 
   useEffect(() => { load() }, [load])
@@ -1269,7 +1283,7 @@ export default function ReservationsScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
                   <View style={{ flex: 1, marginRight: 10 }}>
                     <Text style={{ fontSize: 15, fontWeight: '700', color: '#111827' }} numberOfLines={1}>{clientName(r)}{r.choix_direct ? ' ❤️' : ''}</Text>
-                    {r.client_id && noShowClients.has(r.client_id) && r.statut !== 'no_show' && (
+                    {noShowWarnings.has(r.id) && (
                       <Text style={{ fontSize: 10, fontWeight: '600', color: 'rgba(220, 38, 38, 0.7)', marginTop: 2 }}>
                         ⚠️ No-show précédent — pénalité applicable
                       </Text>
