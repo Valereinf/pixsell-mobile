@@ -2,7 +2,7 @@
   "expo": {
     "name": "Pixsell",
     "slug": "pixsell-mobile",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "scheme": "pixsell",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
