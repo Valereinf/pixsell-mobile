@@ -302,6 +302,14 @@ export default function CalendrierScreen() {
     setCreateError('')
     setEditOriginalClient(null)
     setNewPrenom(''); setNewNom(''); setNewTel(''); setNewEmail('')
+    // Bugfix 2026-09-06 : editingResaId n'etait jamais reinitialise ici — si
+    // cette fonction s'executait alors qu'une session d'edition precedente
+    // etait encore active (editingResaId non-null), handleCreate() prenait la
+    // branche "edition" et ecrasait une AUTRE reservation existante avec la
+    // date/heure/service du nouveau creneau + des champs client vides (ceux
+    // qu'on vient de remettre a '' ci-dessus). Cause probable des RDV
+    // "Sans nom" apparus le 3 septembre.
+    setEditingResaId(null)
     setCreateModal(true)
   }
 
